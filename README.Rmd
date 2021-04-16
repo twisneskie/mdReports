@@ -1,0 +1,37 @@
+---
+title: "RDR Metadata Reporting"
+output: md_document
+author: Theresa Wisneskie (theresa_wisneskie@fws.gov)
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+lapply(list_packages, 
+       library, 
+       character.only = TRUE)
+```
+
+## Purpose
+
+Files contained within this project are used to generate reports for the USFWS Alaska Regional Repository. Reports can be generated for both a general folder overview as well as for specific projects. 
+
+### RDR Overview Report
+
+### Project Report
+
+## Folder Organization
+
+## General development notes:
+Many metadata sections are stored in lists within their columns and must be unnested to be accessed
+
+## Session Information
+```{r session.info, echo = FALSE}
+
+sessionInfo()
+
+```
+
+Data was last downloaded from the Regional Data Repository on `r as_date(file.info("test-data\\rdr-data.Rda")$mtime)`.
+

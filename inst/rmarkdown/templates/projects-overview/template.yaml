@@ -1,0 +1,4 @@
+name: Projects Overview
+description: >
+   Creates an overview of projects with mdJSON files
+create_dir: FALSE
