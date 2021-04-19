@@ -3,14 +3,14 @@
 #' Creates a list of essential data management personnel for each project with
 #' their email address, along with any other requested columns.
 #'
-#' @param data
-#' @param contacts
-#' @param personnel
-#' @param other_columns
+#' @param data Tibble of flattened mdJSON resources
+#' @param contacts Tibble of personnel extracted from the metadata
+#' @param personnel List of personnel roles to be reformatted
+#' @param other_columns Columns to be preserved, other than title, project name,
+#' and the reformatted personnel roles.
 #'
-#' @return
-#'
-#' @examples
+#' @return A tibble containing resource titles, project names, reformatted
+#' personnel roles, and any other specified columns.
 reformat_personnel <- function(data,
                                contacts,
                                personnel = c("AKRegionDataTrustee",

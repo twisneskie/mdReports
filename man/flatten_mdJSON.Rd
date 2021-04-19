@@ -15,6 +15,6 @@ resource: title, responsible parties, resource type, dates, file location,
 data dictionary, directory name, and associated resources.
 }
 \description{
-\code{flatten_mdJSON} flattens a useful subset of metadata fields from
-imported mdJSON files to be used in analysis and reports.
+Flattens a useful subset of metadata fields from imported mdJSON files to be
+used in analysis and reports.
 }

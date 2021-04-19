@@ -12,10 +12,18 @@ reformat_personnel(
 )
 }
 \arguments{
-\item{other_columns}{}
+\item{data}{Tibble of flattened mdJSON resources}
+
+\item{contacts}{Tibble of personnel extracted from the metadata}
+
+\item{personnel}{List of personnel roles to be reformatted}
+
+\item{other_columns}{Columns to be preserved, other than title, project name,
+and the reformatted personnel roles.}
 }
 \value{
-
+A tibble containing resource titles, project names, reformatted
+personnel roles, and any other specified columns.
 }
 \description{
 Creates a list of essential data management personnel for each project with

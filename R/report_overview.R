@@ -7,8 +7,6 @@
 #'
 #' @return
 #' @export
-#'
-#' @examples
 report_overview <- function(data,
                             contacts,
                             output_name,

@@ -17,6 +17,8 @@ A tibble containing imported JSON and,
 if \code{project_names = TRUE}, projects names for imported JSON files.
 }
 \description{
-This function is used to convert mdJSON files into a tibble for
-further analysis in R.
+Converts mdJSON files into a tibble for further analysis in R.
+The \code{import_mdJSON()} function can also add a column for project names,
+derived from the name of the top level folders in the file path given to
+import mdJSON files.
 }
