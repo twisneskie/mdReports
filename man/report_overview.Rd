@@ -7,7 +7,8 @@
 report_overview(data, contacts, output_name, output_dir)
 }
 \arguments{
-\item{data}{Subset of metadata created by \code{subset_mdJSON}.}
+\item{data}{Flattened metadata created by the function
+\code{flatten_mdJSON()}.}
 
 \item{contacts}{List of contacts from the metadata with their metadata IDs.}
 
@@ -16,8 +17,13 @@ report_overview(data, contacts, output_name, output_dir)
 \item{output_dir}{Directory that the report should be generated in.}
 }
 \value{
-
+An html report containing project details.
 }
 \description{
-Report overview of project metadata
+Generates an html report showing details on all imported projects.
+}
+\details{
+Reports contain a list of all projects, the number and types of data
+products, a searchable table of all ongoing project details, and a table of
+critical project personnel.
 }

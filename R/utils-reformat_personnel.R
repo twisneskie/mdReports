@@ -1,24 +1,25 @@
 #' Reformat personnel
 #'
-#' Creates a list of essential data management personnel for each project with
-#' their email address, along with any other requested columns.
+#' For each data management role requested, changes the data from a nested list
+#' to a comma separated list of personnel with their email addresses.
 #'
 #' @param data Tibble of flattened mdJSON resources
 #' @param contacts Tibble of personnel extracted from the metadata
 #' @param personnel List of personnel roles to be reformatted
-#' @param other_columns Columns to be preserved, other than title, project name,
-#' and the reformatted personnel roles.
 #'
-#' @return A tibble containing resource titles, project names, reformatted
-#' personnel roles, and any other specified columns.
+#' @importFrom rlang :=
+#'
+#' @return A tibble with reformatted personnel columns
 reformat_personnel <- function(data,
                                contacts,
-                               personnel = c("AKRegionDataTrustee",
-                                             "AKRegionDataSteward",
-                                             "AKRegionDataCustodian"),
-                               other_columns = c()) {
+                               personnel) {
 
-  reformatted <- data
+  # Separate out the selected personnel roles from the rest of the data
+  wholeData <- dplyr::select(data,
+                             c(-personnel))
+
+  reformatted <- dplyr::select(data,
+                               c("title", personnel))
 
   # Unnest each role
   for(role in personnel) {
@@ -36,16 +37,16 @@ reformat_personnel <- function(data,
                   value = "person",
                   dplyr::any_of(personnel)) %>%
 
-    dplyr::distinct(dplyr::across(c(title,
-                                    role,
-                                    person,
-                                    dplyr::all_of(other_columns)))) %>%
+    dplyr::distinct(dplyr::across(c("title",
+                                    "role",
+                                    "person"))) %>%
 
-    dplyr::group_by(dplyr::across(c(-person))) %>%
+    dplyr::group_by(dplyr::across(c("title",
+                                    "role"))) %>%
 
     tidyr::nest() %>%
 
-    tidyr::spread(role, data) %>%
+    tidyr::spread("role", "data") %>%
 
     dplyr::ungroup()
 
@@ -55,11 +56,10 @@ reformat_personnel <- function(data,
     reformatted <- condense_personnel(reformatted, role)
   }
 
-  # Put the columns in a logical order
-  reformatted <- dplyr::relocate(reformatted,
-                                 "title",
-                                 other_columns,
-                                 dplyr::any_of(c(personnel)))
+  # Add the personnel back to the main tibble
+  reformatted <- dplyr::left_join(wholeData,
+                                  reformatted,
+                                  by = "title")
 
 }
 
@@ -67,46 +67,46 @@ reformat_personnel <- function(data,
 
 unnest_personnel <- function(reformatted, role, contacts) {
 
-  test <- reformatted %>%
+  reformatted %>%
 
     tidyr::unnest_wider(role) %>%
 
-    tidyr::unnest_longer(party) %>%
+    tidyr::unnest_longer("party") %>%
 
-    tidyr::unnest_wider(party) %>%
+    tidyr::unnest_wider("party") %>%
 
-    tidyr::unnest_longer(contactId) %>%
+    tidyr::unnest_longer("contactId") %>%
 
     dplyr::left_join(contacts, by = "contactId") %>%
 
     dplyr::select(-"contactId") %>%
 
-    dplyr::group_by(dplyr::across(c(-name,
-                                    -electronicMailAddress))) %>%
+    dplyr::group_by(dplyr::across(c(-"name",
+                                    -"electronicMailAddress"))) %>%
 
-    tidyr::unnest_wider(electronicMailAddress,
+    tidyr::unnest_wider("electronicMailAddress",
                         names_sep = ".") %>%
 
-    tidyr::unite(electronicMailAddress,
+    tidyr::unite("electronicMailAddress",
                  tidyr::contains("."),
                  sep = ", ",
                  na.rm = TRUE) %>%
 
     # Get rid of leading/trailing spaces in emails
     # and add a closing parentheses
-    dplyr::mutate(electronicMailAddress = electronicMailAddress %>%
+    dplyr::mutate(electronicMailAddress = "electronicMailAddress" %>%
                     stringr::str_trim() %>%
                     stringr::str_c(")") %>%
                     dplyr::na_if(")")) %>%
 
     tidyr::unite(!!role,
-                 c(name, electronicMailAddress),
+                 c("name", "electronicMailAddress"),
                  sep = " (",
                  na.rm = TRUE) %>%
 
     tidyr::nest() %>%
 
-    tidyr::unnest_wider(data) %>%
+    tidyr::unnest_wider("data") %>%
 
     tidyr::unnest_wider(!!role, names_sep = ".") %>%
 
@@ -127,9 +127,9 @@ condense_personnel <- function(reformatted, role) {
 
     tidyr::unnest_wider(role) %>%
 
-    tidyr::unnest_wider(person, names_sep = ".") %>%
+    tidyr::unnest_wider("person", names_sep = ".") %>%
 
-    tidyr::unite(person,
+    tidyr::unite("person",
                  dplyr::contains("."),
                  sep = ", ",
                  na.rm = TRUE) %>%

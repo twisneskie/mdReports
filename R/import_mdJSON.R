@@ -26,7 +26,10 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
 
     purrr::map(jsonlite::fromJSON) %>%
 
-    tibble::tibble(resources = .)
+    tibble::tibble() %>%
+
+    dplyr::rename(resources = ".")
+
 
   if (project_names == TRUE) {
 
@@ -39,9 +42,12 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
 
       stringr::str_extract("(?<=[//])(.*?)(?=[//])") %>%
 
-      tibble::tibble(projectName = .) %>%
+      tibble::tibble() %>%
+
+      dplyr::rename(projectName = ".") %>%
 
       tibble::rownames_to_column(var = "row")
+
 
     json <- tibble::rownames_to_column(json, var = "row") %>%
 
@@ -51,14 +57,15 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
 
   }
 
-  json %>%
-
     # Most reporting needs will be from the "metadata" section,
     # so we will isolate that section to save lines of code in other functions
-    tidyr::hoist(resources, metadata = "metadata") %>%
+    json <- tidyr::hoist(json,
+                         "resources",
+                         metadata = "metadata")
 
     # Drop items that don't have the metadata section
     # (i.e. non-mdJSON files, such as mdEditor files)
-    dplyr::filter(metadata != "NULL")
+    dplyr::filter(json,
+                  json$metadata != "NULL")
 
 }

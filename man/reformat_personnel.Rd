@@ -4,12 +4,7 @@
 \alias{reformat_personnel}
 \title{Reformat personnel}
 \usage{
-reformat_personnel(
-  data,
-  contacts,
-  personnel = c("AKRegionDataTrustee", "AKRegionDataSteward", "AKRegionDataCustodian"),
-  other_columns = c()
-)
+reformat_personnel(data, contacts, personnel)
 }
 \arguments{
 \item{data}{Tibble of flattened mdJSON resources}
@@ -17,15 +12,11 @@ reformat_personnel(
 \item{contacts}{Tibble of personnel extracted from the metadata}
 
 \item{personnel}{List of personnel roles to be reformatted}
-
-\item{other_columns}{Columns to be preserved, other than title, project name,
-and the reformatted personnel roles.}
 }
 \value{
-A tibble containing resource titles, project names, reformatted
-personnel roles, and any other specified columns.
+A tibble with reformatted personnel columns
 }
 \description{
-Creates a list of essential data management personnel for each project with
-their email address, along with any other requested columns.
+For each data management role requested, changes the data from a nested list
+to a comma separated list of personnel with their email addresses.
 }
