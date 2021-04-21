@@ -7,14 +7,25 @@
 #' @param contacts List of contacts from the metadata with their metadata IDs.
 #' @param project_list List of projects that individual reports will be
 #' generated for.
+#' @param output_dir Directory that reports will be saved to.
 #'
 #' @return An html report containing project details.
 #' @export
 report_projects <- function(data,
                             contacts,
-                            project_list = data$projectName) {
+                            project_list = data$projectName,
+                            output_dir) {
 
-  #Isolate ongoing projects
+  # Establish which template to use
+  directory <- "inst\\rmarkdown\\templates\\projects-individual\\skeleton"
+
+  file <- "projects-individual.Rmd"
+
+  template <- paste(directory,
+                    file,
+                    sep = "\\")
+
+  # Isolate ongoing projects
   projects <- project_summary(data,
                               contacts,
                               project_list)
@@ -24,14 +35,15 @@ report_projects <- function(data,
 
     project <- projects[i,]
 
-    rmarkdown::render("reports\\02_project-report.Rmd",
+    rmarkdown::render(template,
                       params = list(project = project,
                                     contacts = contacts,
                                     metaSubset = data),
                       output_file = paste0(project$projectName,
                                            "_",
-                                           as_date(Sys.Date()),
-                                           ".html"))
+                                           as.Date(Sys.Date()),
+                                           ".html"),
+                      output_dir = output_dir)
 
   }
 
@@ -41,172 +53,170 @@ report_projects <- function(data,
 # Takes sub-setted metadata for projects
 # Extracts a subset of useful associated resource information,
 # then renests the information by project
-project_summary <- function(metaSubset,
+project_summary <- function(flat_data,
                             contacts,
-                            projectList,
+                            project_list,
                             personnel = c("AKRegionDataTrustee",
                                           "AKRegionDataSteward",
                                           "AKRegionDataCustodian")) {
 
-  metaSubset %>%
+  projSum <- dplyr::filter(flat_data,
+                           flat_data$type == "project")
 
-    filter(type == "project") %>%
+  dplyr::filter(projSum,
+                projSum$projectName %in% project_list) %>%
 
-    filter(dirName %in% projectList) %>%
+    reformat_personnel(contacts, personnel) %>%
 
-    list_personnel(contacts, otherColumns = c("dirName",
-                                              "abstract",
-                                              "extent",
-                                              "associated")) %>%
+    tidyr::nest(projPersonnel = personnel) %>%
 
-    nest(projPersonnel = personnel) %>%
+    dplyr::select("projectName",
+                  projTitle = "title",
+                  "abstract",
+                  "extent",
+                  "projPersonnel",
+                  "associatedResource") %>%
 
-    select(dirName,
-           projTitle = title,
-           abstract,
-           extent,
-           projPersonnel,
-           associated) %>%
+    tidyr::unnest_longer("associatedResource") %>%
 
-    unnest_longer(associated) %>%
+    tidyr::hoist("associatedResource",
+                 resourceCitation = "resourceCitation",
+                 associationType = "associationType",
+                 metadataCitation = "metadataCitation",
+                 resourceType = "resourceType") %>%
 
-    hoist(associated,
-          resourceCitation = "resourceCitation",
-          associationType = "associationType",
-          metadataCitation = "metadataCitation",
-          resourceType = "resourceType") %>%
+    tidyr::hoist("metadataCitation", identifier = "identifier") %>%
 
-    hoist(metadataCitation, identifier = "identifier") %>%
-
-    unnest(c(resourceCitation,
-             associationType,
-             identifier,
-             resourceType)) %>%
-
-    hoist(identifier, metaId = "identifier") %>%
-
-    hoist(resourceType, prodType = "type") %>%
-
-    select(dirName,
-           projTitle,
-           abstract,
-           extent,
-           projPersonnel,
-           title,
-           responsibleParty,
-           date,
-           onlineResource,
-           associationType,
-           prodType,
-           metaId) %>%
-
-    unnest(responsibleParty, keep_empty = TRUE) %>%
-
-    group_by(across(c(-party))) %>%
-
-    nest %>%
-
-    spread(key = role,
-           value = data) %>%
-
-    select(any_of(c("dirName",
-                    "projTitle",
-                    "abstract",
-                    "extent",
-                    "projPersonnel",
-                    "title",
-                    "originator",
-                    "date",
-                    "onlineResource",
+    tidyr::unnest(c("resourceCitation",
                     "associationType",
-                    "prodType",
-                    "metaId"))) %>%
+                    "identifier",
+                    "resourceType")) %>%
 
-    group_by(dirName,
-             projTitle,
-             abstract,
-             extent,
-             projPersonnel) %>%
+    tidyr::hoist("identifier", metaId = "identifier") %>%
 
-    nest %>%
+    tidyr::hoist("resourceType", prodType = "type") %>%
 
-    ungroup %>%
+    dplyr::select("projectName",
+                  "projTitle",
+                  "abstract",
+                  "extent",
+                  "projPersonnel",
+                  "title",
+                  "responsibleParty",
+                  "date",
+                  "onlineResource",
+                  "associationType",
+                  "prodType",
+                  "metaId") %>%
 
-    unnest_wider(projPersonnel)
+    tidyr::unnest("responsibleParty", keep_empty = TRUE) %>%
+
+    dplyr::group_by(dplyr::across(c(-"party"))) %>%
+
+    tidyr::nest() %>%
+
+    dplyr::ungroup() %>%
+
+    tidyr::spread(key = "role",
+                  value = "data") %>%
+
+    dplyr::select(dplyr::any_of(c("projectName",
+                                  "projTitle",
+                                  "abstract",
+                                  "projPersonnel",
+                                  "extent",
+                                  "title",
+                                  "originator",
+                                  "date",
+                                  "onlineResource",
+                                  "associationType",
+                                  "prodType",
+                                  "metaId"))) %>%
+
+    dplyr::group_by(dplyr::across(c("projectName",
+                                    "projTitle",
+                                    "abstract",
+                                    "projPersonnel"))) %>%
+
+    tidyr::nest() %>%
+
+    dplyr::ungroup() %>%
+
+    tidyr::unnest_wider("projPersonnel")
 
 }
-
-# Create Report Tables for 02_project-report -----------------------------------
-# Creates functions to generate tables for project reports
 
 # Function that generates the table for chunk 3: all.resources
 all_resources <- function(project, metaSubset, contacts) {
 
   allResources <- project %>%
 
-    unnest(data) %>%
+    tidyr::unnest("data") %>%
 
-    select(any_of(c("title",
-                    "originator",
-                    "prodType",
-                    "metaId")))
+    dplyr::select(dplyr::any_of(c("title",
+                                  "originator",
+                                  "prodType",
+                                  "metaId")))
 
-  list_personnel_possibly <- possibly(list_personnel,
-                                      otherwise =
-                                        mutate(allResources,
-                                               originator = "NULL"))
+  reformat_possibly <- purrr::possibly(reformat_personnel,
+                                       otherwise = dplyr::mutate(allResources,
+                                                                 originator =
+                                                                   "NULL"))
 
-  list_personnel_possibly(allResources,
-                          contacts,
-                          personnel = c("originator"),
-                          otherColumns = c("prodType", "identifier")) %>%
+  reformat_possibly(allResources,
+                    contacts,
+                    personnel = c("originator")) %>%
 
-    left_join(select(metaSubset,
-                     metaId,
-                     status,
-                     uri,
-                     dictionary),
-              by = "metaId") %>%
+    dplyr::left_join(dplyr::select(metaSubset,
+                                   "metaId",
+                                   "status",
+                                   "uri",
+                                   "dataDictionary"),
+                     by = "metaId") %>%
 
-    mutate(hasMetadata = case_when(!is.na(status) ~ "Completed",
-                                   is.na(status) ~ "Initiated")) %>%
+    dplyr::mutate(hasMetadata = dplyr::case_when(!is.na(status) ~
+                                                   "Completed",
+                                                 is.na(status) ~
+                                                   "Initiated")) %>%
 
-    mutate(originator = case_when(originator == "NULL" ~ "None assigned",
-                                  originator != "" ~ originator)) %>%
+    dplyr::mutate(originator = dplyr::case_when(originator == "NULL" ~
+                                                  "None assigned",
+                                                originator != "" ~
+                                                  originator)) %>%
 
-    mutate(uri = replace_na(uri, "File Not Archived")) %>%
+    tidyr::replace_na(list(uri = "File Not Archived")) %>%
 
-    select(-c(metaId, status)) %>%
+    dplyr::select(-c("metaId", "status")) %>%
 
-    select(title,
-           "prodType",
-           "hasMetadata",
-           "originator",
-           "uri")
+    dplyr::select("title",
+                  "prodType",
+                  "hasMetadata",
+                  "originator",
+                  "uri")
 
 }
 
 # Function that generates the table for chunk 4: data.dictionaries
 data_dictionary <- function(project, metaSubset) {
 
-  project %>%
+  dictionaryTable <- project %>%
 
-    tidyr::unnest(data) %>%
+    tidyr::unnest("data") %>%
 
-    dplyr::select(title,
-           prodType,
-           metaId) %>%
+    dplyr::select("title",
+                  "prodType",
+                  "metaId") %>%
 
-    dplyr::left_join(select(metaSubset,
-                     metaId,
-                     status,
-                     uri,
-                     dictionary),
-              by = "metaId") %>%
+    dplyr::left_join(dplyr::select(metaSubset,
+                                   "metaId",
+                                   "status",
+                                   "uri",
+                                   "dataDictionary"),
+                     by = "metaId")
 
-    dplyr::filter(dictionary != "NULL") %>%
+    dplyr::filter(dictionaryTable,
+                  dictionaryTable$dataDictionary != "NULL") %>%
 
-    dplyr::select(title)
+      dplyr::select("title")
 
 }
-

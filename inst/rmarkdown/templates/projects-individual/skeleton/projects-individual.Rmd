@@ -8,44 +8,48 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-# Load functions
-source(here("src\\02_report-data.R"))
-
-# Document Options
-opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
 ## Project Abstract
-`r pull(project, abstract)`
+`r dplyr::pull(project, abstract)`
 
 ## Data Management Personnel
 ```{r dm.personnel}
 project %>%
   
-  select(-data, 
-         -abstract,
-         -dirName,
-         -projTitle) %>%
+  dplyr::select(-"data",
+                -"abstract",
+                -"projectName",
+                -"projTitle") %>%
 
-  kable %>%
+  knitr::kable() %>%
   
-  kable_styling(full_width = FALSE, position = "left")
+  kableExtra::kable_styling(full_width = FALSE, position = "left")
 ```
 
 ## All resources
 
 ```{r all.resources}
-all_resources(project, metaSubset, contacts) %>%
+all_resources(project, 
+              metaSubset, 
+              contacts) %>%
   
-  datatable(filter = "top",
-            options = list(pageLength = 5,
-                           lengthMenu = c(5, 10, 15, 20),
-                           scrollX = TRUE,
-                           columnDefs = list(list(width = '20%', 
-                                                  targets = list(1, 4)))),
-            autoHideNavigation = getOption("DT.autoHideNavigation", 
-                                           TRUE),
-            width = "10in")
+  DT::datatable(filter = "top",
+                options = list(pageLength = 5,
+                               lengthMenu = c(5, 
+                                              10, 
+                                              15, 
+                                              20),
+                               scrollX = TRUE,
+                               columnDefs = list(list(width = '20%',
+                                                      targets = list(1, 4)
+                                                      )
+                                                 )
+                               ),
+                autoHideNavigation = getOption("DT.autoHideNavigation",
+                                               TRUE),
+                width = "10in")
 
 ```
 
@@ -58,9 +62,9 @@ if(nrow(dictTable) > 0) {
   
   dictTable %>%
     
-    kable %>%
+    knitr::kable() %>%
     
-    kable_styling(full_width = FALSE, position = "left")
+    kableExtra::kable_styling(full_width = FALSE, position = "left")
   
 } else {
 
