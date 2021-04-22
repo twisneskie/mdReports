@@ -1,0 +1,31 @@
+---
+title: "Introduction to mdReports"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{mdReports}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(mdReports)
+```
+
+This document introduces you to mdReports set of tools for importing and working with mdJSON files and shows you how to apply them. 
+
+## Import mdJSON files with `import_mdJSON()`
+
+## Flatten nested mdJSON files with `flatten_mdJSON()`
+
+## Get all personnel records with `get_contacts()`
+
+## Generate a report on all projects with `report_overview()`
+
+## Generate reports for individual projects with `report_individual()`

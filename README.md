@@ -27,3 +27,7 @@ You can install the released version of mdReports from
 [Github](https://github.com/) by installing devtools, if necessary, with
 `install.packages("devtools")` followed by running
 `devtools::install_github("twisneskie/mdReports")`.
+
+## Vignette
+
+View the vignette for this package using `vignette(mdReports)`
