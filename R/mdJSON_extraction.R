@@ -87,7 +87,7 @@ flatten_mdJSON <- function(data) {
 #' \code{namespace} as top level columns.
 extract_metadataInfo <- function(mdFiles){
 
-  mdFiles %>%
+  test <- data %>%
 
     tidyr::hoist("metadata", "metadataInfo") %>%
 
@@ -97,7 +97,9 @@ extract_metadataInfo <- function(mdFiles){
     tidyr::unnest_wider("metadataIdentifier") %>%
 
     # Give identifier a unique and meaningful name
-    dplyr::rename(metaId = "identifier")
+    dplyr::rename(metaId = "identifier") %>%
+
+    dplyr::select(-"namespace")
 
 }
 

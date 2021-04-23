@@ -57,15 +57,32 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
 
   }
 
-    # Most reporting needs will be from the "metadata" section,
-    # so we will isolate that section to save lines of code in other functions
-    json <- tidyr::hoist(json,
-                         "resources",
-                         "metadata")
+  # Unpack resources into the top level components: schema, contact, metadata,
+  # metadata repository, and data dictionary
+  json <- tidyr::hoist(json,
+                       "resources",
+                       "metadata",
+                       "schema",
+                       "contact",
+                       "metadataRepository",
+                       "dataDictionary")
 
-    # Drop items that don't have the metadata section
-    # (i.e. non-mdJSON files, such as mdEditor files)
-    dplyr::filter(json,
-                  json$metadata != "NULL")
+  # Drop items that don't have the metadata section
+  # (i.e. non-mdJSON files, such as mdEditor files)
+  dplyr::filter(json, json$metadata != "NULL") %>%
+
+    # Extract out metadata identifier from metadata
+    tidyr::hoist("metadata", "metadataInfo") %>%
+
+    tidyr::hoist("metadataInfo", "metadataIdentifier") %>%
+
+    # Unnest into identifier and namespace
+    tidyr::unnest_wider("metadataIdentifier") %>%
+
+    # Give identifier a unique and meaningful name
+    dplyr::rename(metaId = "identifier") %>%
+
+    dplyr::select(-dplyr::any_of(c("namespace",
+                                   "resources")))
 
 }
