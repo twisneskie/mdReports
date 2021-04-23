@@ -61,7 +61,7 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
     # so we will isolate that section to save lines of code in other functions
     json <- tidyr::hoist(json,
                          "resources",
-                         metadata = "metadata")
+                         "metadata")
 
     # Drop items that don't have the metadata section
     # (i.e. non-mdJSON files, such as mdEditor files)

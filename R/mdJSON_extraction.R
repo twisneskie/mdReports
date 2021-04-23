@@ -17,11 +17,11 @@ get_contacts <- function(data) {
 
   data %>%
 
-    tidyr::hoist("resources", contacts = "contact") %>%
+    tidyr::hoist("resources", "contact") %>%
 
-    tidyr::unnest("contacts") %>%
+    tidyr::unnest("contact") %>%
 
-    tidyr::unnest("contacts") %>%
+    tidyr::unnest("contact") %>%
 
     dplyr::select("contactId",
                   "name",
@@ -89,9 +89,9 @@ extract_metadataInfo <- function(mdFiles){
 
   mdFiles %>%
 
-    tidyr::hoist("metadata", metadataInfo = "metadataInfo") %>%
+    tidyr::hoist("metadata", "metadataInfo") %>%
 
-    tidyr::hoist("metadataInfo", metadataIdentifier = "metadataIdentifier") %>%
+    tidyr::hoist("metadataInfo", "metadataIdentifier") %>%
 
     # Unnest into identifier and namespace
     tidyr::unnest_wider("metadataIdentifier") %>%
@@ -113,11 +113,11 @@ extract_resourceDistribution <- function(mdFiles) {
 
   mdFiles %>%
 
-    tidyr::hoist("metadata", resourceDistribution = "resourceDistribution") %>%
+    tidyr::hoist("metadata", "resourceDistribution") %>%
 
     tidyr::unnest_longer("resourceDistribution") %>%
 
-    tidyr::hoist("resourceDistribution", distributor = "distributor") %>%
+    tidyr::hoist("resourceDistribution", "distributor") %>%
 
     tidyr::unnest_longer("distributor") %>%
 
@@ -151,7 +151,7 @@ extract_associatedResource <- function(mdFiles) {
 
   tidyr::hoist(mdFiles,
                "metadata",
-               associatedResource = "associatedResource")
+               "associatedResource")
 }
 
 #' Extract dataDictionary column
@@ -163,8 +163,8 @@ extract_associatedResource <- function(mdFiles) {
 extract_dataDictionary <- function(mdFiles) {
 
   tidyr::hoist(mdFiles,
-        "resources",
-        dataDictionary = "dataDictionary")
+               "resources",
+               "dataDictionary")
 
 }
 
@@ -176,9 +176,10 @@ extract_dataDictionary <- function(mdFiles) {
 #' @return The input tibble with \code{resourceInfo} as a top level column.
 extract_resourceInfo <- function(mdFiles) {
 
-  mdFiles %>%
+  tidyr::hoist(mdFiles,
+               "metadata",
+               "resourceInfo")
 
-    tidyr::hoist("metadata", resourceInfo = "resourceInfo")
 }
 
 #' Extract abstract column
@@ -191,7 +192,7 @@ extract_abstract <- function(resourceInfo) {
 
   tidyr::hoist(resourceInfo,
                "resourceInfo",
-               abstract = "abstract")
+               "abstract")
 
 }
 
@@ -206,7 +207,7 @@ extract_type <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", resourceType = "resourceType") %>%
+    tidyr::hoist("resourceInfo", "resourceType") %>%
 
     tidyr::unnest_longer("resourceType") %>%
 
@@ -229,7 +230,7 @@ extract_taxonomy <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", taxonomy = "taxonomy") %>%
+    tidyr::hoist("resourceInfo", "taxonomy") %>%
 
     tidyr::unnest_longer("taxonomy") %>%
 
@@ -248,7 +249,7 @@ extract_extent <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", extent = "extent") %>%
+    tidyr::hoist("resourceInfo", "extent") %>%
 
     tidyr::unnest("extent", keep_empty = TRUE)
 }
@@ -264,7 +265,7 @@ extract_dates <- function(resourceInfo) {
 
   dates <- resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", timePeriod = "timePeriod") %>%
+    tidyr::hoist("resourceInfo", "timePeriod") %>%
 
     # Unnest startDateTime, endDateTime, timeInterval, and description
     tidyr::unnest("timePeriod", keep_empty = TRUE)
@@ -288,7 +289,7 @@ extract_people <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", pointOfContact = "pointOfContact") %>%
+    tidyr::hoist("resourceInfo", "pointOfContact") %>%
 
     tidyr::unnest_longer("pointOfContact")%>%
 
@@ -316,7 +317,7 @@ extract_status <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", status = "status") %>%
+    tidyr::hoist("resourceInfo", "status") %>%
 
     # Unnest status
     tidyr::unnest_longer("status")
@@ -334,8 +335,8 @@ extract_citation <- function(resourceInfo) {
 
   resourceInfo %>%
 
-    tidyr::hoist("resourceInfo", citation = "citation") %>%
+    tidyr::hoist("resourceInfo", "citation") %>%
 
-    tidyr::hoist("citation", title = "title")
+    tidyr::hoist("citation", "title")
 
 }

@@ -80,12 +80,12 @@ project_summary <- function(flat_data,
     tidyr::unnest_longer("associatedResource") %>%
 
     tidyr::hoist("associatedResource",
-                 resourceCitation = "resourceCitation",
-                 associationType = "associationType",
-                 metadataCitation = "metadataCitation",
-                 resourceType = "resourceType") %>%
+                 "resourceCitation",
+                 "associationType",
+                 "metadataCitation",
+                 "resourceType") %>%
 
-    tidyr::hoist("metadataCitation", identifier = "identifier") %>%
+    tidyr::hoist("metadataCitation", "identifier") %>%
 
     tidyr::unnest(c("resourceCitation",
                     "associationType",
