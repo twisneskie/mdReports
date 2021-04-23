@@ -19,7 +19,7 @@ reformat_personnel <- function(data,
                              c(-personnel))
 
   reformatted <- dplyr::select(data,
-                               c("title", personnel))
+                               c("metaId", personnel))
 
   # Unnest each role
   for(role in personnel) {
@@ -37,11 +37,11 @@ reformat_personnel <- function(data,
                   value = "person",
                   dplyr::any_of(personnel)) %>%
 
-    dplyr::distinct(dplyr::across(c("title",
+    dplyr::distinct(dplyr::across(c("metaId",
                                     "role",
                                     "person"))) %>%
 
-    dplyr::group_by(dplyr::across(c("title",
+    dplyr::group_by(dplyr::across(c("metaId",
                                     "role"))) %>%
 
     tidyr::nest() %>%
@@ -59,7 +59,7 @@ reformat_personnel <- function(data,
   # Add the personnel back to the main tibble
   reformatted <- dplyr::left_join(wholeData,
                                   reformatted,
-                                  by = "title")
+                                  by = "metaId")
 
 }
 
@@ -67,7 +67,7 @@ reformat_personnel <- function(data,
 
 unnest_personnel <- function(reformatted, role, contacts) {
 
-  reformatted %>%
+  reformatted <- reformatted %>%
 
     tidyr::unnest_wider(role) %>%
 
@@ -81,23 +81,25 @@ unnest_personnel <- function(reformatted, role, contacts) {
 
     dplyr::select(-"contactId") %>%
 
-    dplyr::group_by(dplyr::across(c(-"name",
-                                    -"electronicMailAddress"))) %>%
-
     tidyr::unnest_wider("electronicMailAddress",
                         names_sep = ".") %>%
 
     tidyr::unite("electronicMailAddress",
                  tidyr::contains("."),
                  sep = ", ",
-                 na.rm = TRUE) %>%
+                 na.rm = TRUE)
 
-    # Get rid of leading/trailing spaces in emails
-    # and add a closing parentheses
-    dplyr::mutate(electronicMailAddress = "electronicMailAddress" %>%
-                    stringr::str_trim() %>%
-                    stringr::str_c(")") %>%
-                    dplyr::na_if(")")) %>%
+  # Get rid of leading/trailing spaces in emails
+  # and add a closing parentheses
+  reformatted <- dplyr::mutate(reformatted,
+                               electronicMailAddress =
+                                 reformatted$electronicMailAddress %>%
+                                 stringr::str_trim() %>%
+                                 stringr::str_c(")") %>%
+                                 dplyr::na_if(")")) %>%
+
+    dplyr::group_by(dplyr::across(-c("name",
+                                     "electronicMailAddress"))) %>%
 
     tidyr::unite(!!role,
                  c("name", "electronicMailAddress"),

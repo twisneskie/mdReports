@@ -1,8 +1,116 @@
-##################
-# mdJSON Extraction
-# Functions and helpers that extract information from imported mdJSON files
-# Created by Theresa Wisneskie (theresa_wisneskie@fws.gov)
-##################
+#' Flatten metadata
+#'
+#' @description
+#' Flattens a useful subset of metadata fields from imported mdJSON files to be
+#' used in analysis and reports.
+#'
+#' @param data A tibble of mdJSON files
+#'
+#' @return A partially flattened tibble of useful metadata fields for each
+#' resource: title, responsible parties, resource type, dates, file location,
+#' data dictionary, directory name, and associated resources.
+#' @export
+flatten_mdJSON <- function(data) {
+
+  # Run helper functions
+  flat <- data %>%
+
+    # Extract all fields under "metadata"
+    tidyr::hoist("metadata",
+                 "resourceInfo",
+                 "resourceLineage",
+                 "resourceDistribution",
+                 "associatedResource") %>%
+
+    # Extract all fields under "resourceInfo"
+    tidyr::hoist("resourceInfo",
+                 "resourceType",
+                 "citation",
+                 "pointOfContact",
+                 "abstract",
+                 "status",
+                 "timePeriod") %>%
+
+    # Expand some fields needed for reports
+    tidyr::unnest(c("resourceType",
+                    "timePeriod",
+                    "pointOfContact",
+                    "status",
+                    "resourceDistribution"),
+                  keep_empty = TRUE) %>%
+
+    tidyr::unnest(c("resourceType",
+                    "pointOfContact",
+                    "status"),
+                  keep_empty = TRUE) %>%
+
+    # Give "name" a unique and meaningful name
+    dplyr::rename(resourceName = "name")
+
+  # Add columns for startDate and endDate
+  flat <- dplyr::mutate(flat,
+                        startDate = as.Date(flat$startDateTime),
+                        endDate = as.Date(flat$endDateTime),
+                        keep = "unused")
+
+  # Reformat personnel
+  roles <- unique(flat$role)
+
+  contacts <- get_contacts(data)
+
+  flat <- flat %>%
+
+    dplyr::group_by(dplyr::across(-"party")) %>%
+
+    tidyr::nest() %>%
+
+    tidyr::pivot_wider(names_from = "role",
+                       values_from = "data") %>%
+
+    dplyr::ungroup()
+
+  flat <- reformat_personnel(flat, contacts, roles)
+
+  # Extract file location
+  possibly_extract <- purrr::possibly(extract_resourceDistribution,
+                                      otherwise = dplyr::mutate(flat,
+                                                                uri = "NULL"))
+  possibly_extract(flat)
+
+}
+
+# Helper Functions -------------------------------------------------------------
+
+#' Extract resourceDistribution column
+#'
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
+#' function.
+#'
+#' @return The input tibble with `resourceDistribtuion`, `contact`,
+#' `uri`, `onlineResourceName`, `function`, and
+#' `transferSize` as top level columns.
+extract_resourceDistribution <- function(mdFiles) {
+
+  mdFiles %>%
+
+    tidyr::hoist("resourceDistribution", "distributor") %>%
+
+    tidyr::unnest("distributor", keep_empty = TRUE) %>%
+
+    tidyr::hoist("distributor",
+                 "transferOption") %>%
+
+    tidyr::unnest("transferOption", keep_empty = TRUE) %>%
+
+    tidyr::hoist("transferOption",
+                 "onlineOption") %>%
+
+    tidyr::unnest("onlineOption", keep_empty = TRUE) %>%
+
+    tidyr::hoist("onlineOption", "uri")
+
+}
+
 #' Get metadata contacts
 #'
 #' Creates a table of contacts associated with metadata resources
@@ -12,7 +120,6 @@
 #' @return A tibble containing contact ID, contact name and email address for
 #' contacts found in imported metadata.
 #' @export
-
 get_contacts <- function(data) {
 
   data %>%
@@ -30,316 +137,4 @@ get_contacts <- function(data) {
 
 }
 
-#' Flatten metadata
-#'
-#' @description
-#'`r lifecycle::badge("deprecated")`
-#'
-#'Flattens a useful subset of metadata fields from imported mdJSON files to be
-#' used in analysis and reports.
-#'
-#' @param data A tibble of mdJSON files
-#'
-#' @return A partially flattened tibble of useful metadata fields for each
-#' resource: title, responsible parties, resource type, dates, file location,
-#' data dictionary, directory name, and associated resources.
-#' @export
-flatten_mdJSON <- function(data) {
 
-  # Run all helper functions
-  data %>%
-
-    extract_resourceInfo %>%
-
-    extract_abstract %>%
-
-    extract_status %>%
-
-    extract_citation %>%
-
-    extract_people %>%
-
-    extract_type %>%
-
-    extract_extent %>%
-
-    extract_taxonomy %>%
-
-    extract_dates %>%
-
-    extract_associatedResource %>%
-
-    extract_resourceDistribution %>%
-
-    extract_metadataInfo %>%
-
-    extract_dataDictionary
-
-}
-
-# Helper Functions -------------------------------------------------------------
-
-#' Extract metadataInfo column
-#'
-#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
-#' function.
-#'
-#' @return The input tibble with `metadataInfo`, `metaId`, and
-#' `namespace` as top level columns.
-extract_metadataInfo <- function(mdFiles){
-
-  test <- data %>%
-
-    tidyr::hoist("metadata", "metadataInfo") %>%
-
-    tidyr::hoist("metadataInfo", "metadataIdentifier") %>%
-
-    # Unnest into identifier and namespace
-    tidyr::unnest_wider("metadataIdentifier") %>%
-
-    # Give identifier a unique and meaningful name
-    dplyr::rename(metaId = "identifier") %>%
-
-    dplyr::select(-"namespace")
-
-}
-
-#' Extract resourceDistribution column
-#'
-#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
-#' function.
-#'
-#' @return The input tibble with `resourceDistribtuion`, `contact`,
-#' `uri`, `onlineResourceName`, `function`, and
-#' `transferSize` as top level columns.
-extract_resourceDistribution <- function(mdFiles) {
-
-  mdFiles %>%
-
-    tidyr::hoist("metadata", "resourceDistribution") %>%
-
-    tidyr::unnest_longer("resourceDistribution") %>%
-
-    tidyr::hoist("resourceDistribution", "distributor") %>%
-
-    tidyr::unnest_longer("distributor") %>%
-
-    # Unnest contact and transferOption
-    tidyr::unnest_wider("distributor") %>%
-
-    tidyr::unnest_longer("transferOption") %>%
-
-    # Unnest onlineOption and transferSize
-    tidyr::unnest_wider("transferOption") %>%
-
-    tidyr::unnest_longer("onlineOption") %>%
-
-    # Unnest uri, name, and function
-    tidyr::unnest_wider("onlineOption") %>%
-
-    # Give "name" a unique and meaningful name
-    dplyr::rename(onlineResourceName = "name")
-
-}
-
-#' Extract associatedResource column
-#'
-#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
-#' function.
-#'
-#' @return The input tibble with `resourceDistribtuion`, `contact`,
-#' `uri`, `onlineResourceName`, `function`, and
-#' `transferSize` as top level columns.
-extract_associatedResource <- function(mdFiles) {
-
-  tidyr::hoist(mdFiles,
-               "metadata",
-               "associatedResource")
-}
-
-#' Extract dataDictionary column
-#'
-#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
-#' function.
-#'
-#' @return The input tibble with `dataDictionary` as a top level column.
-extract_dataDictionary <- function(mdFiles) {
-
-  tidyr::hoist(mdFiles,
-               "resources",
-               "dataDictionary")
-
-}
-
-#' Extract resourceInfo column
-#'
-#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
-#' function.
-#'
-#' @return The input tibble with `resourceInfo` as a top level column.
-extract_resourceInfo <- function(mdFiles) {
-
-  tidyr::hoist(mdFiles,
-               "metadata",
-               "resourceInfo")
-
-}
-
-#' Extract abstract column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `abstract` as a top level column.
-extract_abstract <- function(resourceInfo) {
-
-  tidyr::hoist(resourceInfo,
-               "resourceInfo",
-               "abstract")
-
-}
-
-#' Extract resource type column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `type` and `resourceName` as top
-#' level columns.
-extract_type <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "resourceType") %>%
-
-    tidyr::unnest_longer("resourceType") %>%
-
-    # Unnest into type and name
-    tidyr::unnest_wider("resourceType") %>%
-
-    # Give "name" a unique and meaningful name
-    dplyr::rename(resourceName = "name")
-
-}
-
-#' Extract taxonomy column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `taxonomicClassification` and
-#' `taxonomicSystem` as top level columns.
-extract_taxonomy <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "taxonomy") %>%
-
-    tidyr::unnest_longer("taxonomy") %>%
-
-    # Unnest taxonomicClassification and taxonomicSystem
-    tidyr::unnest_wider("taxonomy")
-
-}
-
-#' Extract extent column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `extent` as a top level column.
-extract_extent <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "extent") %>%
-
-    tidyr::unnest("extent", keep_empty = TRUE)
-}
-
-#' Extract dates columns
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `startDateTime` and `endDateTime`
-#' as top level columns. Creates columns `startDate` and `endDate`.
-extract_dates <- function(resourceInfo) {
-
-  dates <- resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "timePeriod") %>%
-
-    # Unnest startDateTime, endDateTime, timeInterval, and description
-    tidyr::unnest("timePeriod", keep_empty = TRUE)
-
-    # Create new columns with the start and end datetimes as just dates
-  dates <- dplyr::mutate(dates,
-                         startDate = as.Date(dates$startDateTime))
-
-  dplyr::mutate(dates,
-                endDate = as.Date(dates$endDateTime))
-
-}
-
-#' Extract pointOfContact column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with all personnel roles as top level columns.
-extract_people <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "pointOfContact") %>%
-
-    tidyr::unnest_longer("pointOfContact")%>%
-
-    # Unnest party and role
-    tidyr::unnest("pointOfContact", keep_empty = TRUE) %>%
-
-    # Make each role its own column containing party
-    dplyr::group_by(dplyr::across(-"party")) %>%
-
-    tidyr::nest() %>%
-
-    tidyr::spread("role", "data") %>%
-
-    dplyr::ungroup()
-
-}
-
-#' Extract status column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `status` as a top level column.
-extract_status <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "status") %>%
-
-    # Unnest status
-    tidyr::unnest_longer("status")
-
-}
-
-#' Extract citation column
-#'
-#' @param resourceInfo The output from the from the
-#' `extract_resourceInfo()` function.
-#'
-#' @return The input tibble with `citation` and `title` as top level
-#' columns.
-extract_citation <- function(resourceInfo) {
-
-  resourceInfo %>%
-
-    tidyr::hoist("resourceInfo", "citation") %>%
-
-    tidyr::hoist("citation", "title")
-
-}
