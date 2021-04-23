@@ -15,6 +15,8 @@ resource: title, responsible parties, resource type, dates, file location,
 data dictionary, directory name, and associated resources.
 }
 \description{
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#deprecated}{\figure{lifecycle-deprecated.svg}{options: alt='[Deprecated]'}}}{\strong{[Deprecated]}}
+
 Flattens a useful subset of metadata fields from imported mdJSON files to be
 used in analysis and reports.
 }

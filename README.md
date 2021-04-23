@@ -7,8 +7,8 @@
 
 <!-- badges: end -->
 
-The goal of mdReports is to offer tools to import, manipulate, and
-create reports from mdJSON metadata files created by mdEditor.
+The goal of mdReports is to offer tools to import, search, and create
+reports from mdJSON metadata files created by mdEditor.
 
 The web application mdEditor provides a user interface for authoring and
 editing metadata for projects and datasets without requiring extensive

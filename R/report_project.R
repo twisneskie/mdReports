@@ -3,7 +3,7 @@
 #' Generates reports for individual projects.
 #'
 #' @param data Flattened metadata created by the function
-#' \code{flatten_mdJSON()}.
+#' `flatten_mdJSON()`.
 #' @param contacts List of contacts from the metadata with their metadata IDs.
 #' @param project_list List of projects that individual reports will be
 #' generated for.

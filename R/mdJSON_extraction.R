@@ -17,8 +17,6 @@ get_contacts <- function(data) {
 
   data %>%
 
-    tidyr::hoist("resources", "contact") %>%
-
     tidyr::unnest("contact") %>%
 
     tidyr::unnest("contact") %>%
@@ -34,7 +32,10 @@ get_contacts <- function(data) {
 
 #' Flatten metadata
 #'
-#' Flattens a useful subset of metadata fields from imported mdJSON files to be
+#' @description
+#'`r lifecycle::badge("deprecated")`
+#'
+#'Flattens a useful subset of metadata fields from imported mdJSON files to be
 #' used in analysis and reports.
 #'
 #' @param data A tibble of mdJSON files
@@ -80,11 +81,11 @@ flatten_mdJSON <- function(data) {
 
 #' Extract metadataInfo column
 #'
-#' @param mdFiles The \code{data} argument from the \code{flatten_mdJSON()}
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
 #' function.
 #'
-#' @return The input tibble with \code{metadataInfo}, \code{metaId}, and
-#' \code{namespace} as top level columns.
+#' @return The input tibble with `metadataInfo`, `metaId`, and
+#' `namespace` as top level columns.
 extract_metadataInfo <- function(mdFiles){
 
   test <- data %>%
@@ -105,12 +106,12 @@ extract_metadataInfo <- function(mdFiles){
 
 #' Extract resourceDistribution column
 #'
-#' @param mdFiles The \code{data} argument from the \code{flatten_mdJSON()}
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
 #' function.
 #'
-#' @return The input tibble with \code{resourceDistribtuion}, \code{contact},
-#' \code{uri}, \code{onlineResourceName}, \code{function}, and
-#' \code{transferSize} as top level columns.
+#' @return The input tibble with `resourceDistribtuion`, `contact`,
+#' `uri`, `onlineResourceName`, `function`, and
+#' `transferSize` as top level columns.
 extract_resourceDistribution <- function(mdFiles) {
 
   mdFiles %>%
@@ -143,12 +144,12 @@ extract_resourceDistribution <- function(mdFiles) {
 
 #' Extract associatedResource column
 #'
-#' @param mdFiles The \code{data} argument from the \code{flatten_mdJSON()}
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
 #' function.
 #'
-#' @return The input tibble with \code{resourceDistribtuion}, \code{contact},
-#' \code{uri}, \code{onlineResourceName}, \code{function}, and
-#' \code{transferSize} as top level columns.
+#' @return The input tibble with `resourceDistribtuion`, `contact`,
+#' `uri`, `onlineResourceName`, `function`, and
+#' `transferSize` as top level columns.
 extract_associatedResource <- function(mdFiles) {
 
   tidyr::hoist(mdFiles,
@@ -158,10 +159,10 @@ extract_associatedResource <- function(mdFiles) {
 
 #' Extract dataDictionary column
 #'
-#' @param mdFiles The \code{data} argument from the \code{flatten_mdJSON()}
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
 #' function.
 #'
-#' @return The input tibble with \code{dataDictionary} as a top level column.
+#' @return The input tibble with `dataDictionary` as a top level column.
 extract_dataDictionary <- function(mdFiles) {
 
   tidyr::hoist(mdFiles,
@@ -172,10 +173,10 @@ extract_dataDictionary <- function(mdFiles) {
 
 #' Extract resourceInfo column
 #'
-#' @param mdFiles The \code{data} argument from the \code{flatten_mdJSON()}
+#' @param mdFiles The `data` argument from the `flatten_mdJSON()`
 #' function.
 #'
-#' @return The input tibble with \code{resourceInfo} as a top level column.
+#' @return The input tibble with `resourceInfo` as a top level column.
 extract_resourceInfo <- function(mdFiles) {
 
   tidyr::hoist(mdFiles,
@@ -187,9 +188,9 @@ extract_resourceInfo <- function(mdFiles) {
 #' Extract abstract column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{abstract} as a top level column.
+#' @return The input tibble with `abstract` as a top level column.
 extract_abstract <- function(resourceInfo) {
 
   tidyr::hoist(resourceInfo,
@@ -201,9 +202,9 @@ extract_abstract <- function(resourceInfo) {
 #' Extract resource type column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{type} and \code{resourceName} as top
+#' @return The input tibble with `type` and `resourceName` as top
 #' level columns.
 extract_type <- function(resourceInfo) {
 
@@ -224,10 +225,10 @@ extract_type <- function(resourceInfo) {
 #' Extract taxonomy column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{taxonomicClassification} and
-#' \code{taxonomicSystem} as top level columns.
+#' @return The input tibble with `taxonomicClassification` and
+#' `taxonomicSystem` as top level columns.
 extract_taxonomy <- function(resourceInfo) {
 
   resourceInfo %>%
@@ -244,9 +245,9 @@ extract_taxonomy <- function(resourceInfo) {
 #' Extract extent column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{extent} as a top level column.
+#' @return The input tibble with `extent` as a top level column.
 extract_extent <- function(resourceInfo) {
 
   resourceInfo %>%
@@ -259,10 +260,10 @@ extract_extent <- function(resourceInfo) {
 #' Extract dates columns
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{startDateTime} and \code{endDateTime}
-#' as top level columns. Creates columns \code{startDate} and \code{endDate}.
+#' @return The input tibble with `startDateTime` and `endDateTime`
+#' as top level columns. Creates columns `startDate` and `endDate`.
 extract_dates <- function(resourceInfo) {
 
   dates <- resourceInfo %>%
@@ -284,7 +285,7 @@ extract_dates <- function(resourceInfo) {
 #' Extract pointOfContact column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
 #' @return The input tibble with all personnel roles as top level columns.
 extract_people <- function(resourceInfo) {
@@ -312,9 +313,9 @@ extract_people <- function(resourceInfo) {
 #' Extract status column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{status} as a top level column.
+#' @return The input tibble with `status` as a top level column.
 extract_status <- function(resourceInfo) {
 
   resourceInfo %>%
@@ -329,9 +330,9 @@ extract_status <- function(resourceInfo) {
 #' Extract citation column
 #'
 #' @param resourceInfo The output from the from the
-#' \code{extract_resourceInfo()} function.
+#' `extract_resourceInfo()` function.
 #'
-#' @return The input tibble with \code{citation} and \code{title} as top level
+#' @return The input tibble with `citation` and `title` as top level
 #' columns.
 extract_citation <- function(resourceInfo) {
 

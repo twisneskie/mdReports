@@ -7,7 +7,7 @@
 #' critical project personnel.
 #'
 #' @param data Flattened metadata created by the function
-#' \code{flatten_mdJSON()}.
+#' `flatten_mdJSON()`.
 #' @param contacts List of contacts from the metadata with their metadata IDs.
 #' @param output_name Name to be given to the report generated.
 #' @param output_dir Directory that the report should be generated in.

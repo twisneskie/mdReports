@@ -18,7 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of mdReports is to offer tools to import, manipulate, and create 
+The goal of mdReports is to offer tools to import, search, and create 
 reports from mdJSON metadata files created by mdEditor.
 
 The web application mdEditor provides a user interface for authoring and editing metadata for projects and datasets without requiring extensive knowledge of metadata standards. The mdEditor application creates mdJSON records, a JSON standard for metadata created by the Alaska Data Integration Working Group, which can be exported as-is or translated into a variety of metadata standards.
