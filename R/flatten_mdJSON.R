@@ -31,6 +31,9 @@ flatten_mdJSON <- function(data) {
                  "status",
                  "timePeriod") %>%
 
+    tidyr::hoist("citation",
+                 "title") %>%
+
     # Expand some fields needed for reports
     tidyr::unnest(dplyr::any_of(c("resourceType",
                                   "timePeriod",
