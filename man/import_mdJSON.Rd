@@ -4,7 +4,7 @@
 \alias{import_mdJSON}
 \title{Import mdJSON files}
 \usage{
-import_mdJSON(path = getwd(), project_names = TRUE)
+import_mdJSON(path, project_names = TRUE)
 }
 \arguments{
 \item{path}{Path to directory that will be searched for mdJSON files.}
@@ -13,8 +13,10 @@ import_mdJSON(path = getwd(), project_names = TRUE)
 with the top level directory after the path given as project names.}
 }
 \value{
-A tibble containing imported JSON and,
-if \code{project_names = TRUE}, projects names for imported JSON files.
+A tibble containing imported mdJSON metadata. Tibble
+columns include metadata identifier and namespace, the top level metadata
+elements, and, if \code{project_names = TRUE}, projects names for imported mdJSON
+files.
 }
 \description{
 Converts mdJSON files into a tibble for further analysis in R.

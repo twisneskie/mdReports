@@ -2,7 +2,6 @@
 
 export("%>%")
 export(flatten_mdJSON)
-export(get_contacts)
 export(import_mdJSON)
 export(report_overview)
 export(report_projects)

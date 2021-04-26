@@ -7,7 +7,9 @@
 search_taxon(data, taxon)
 }
 \arguments{
-\item{taxon}{}
+\item{data}{Imported mdJSON data}
+
+\item{taxon}{Taxon to search for}
 }
 \value{
 A subset of resources that contain a specific taxon.

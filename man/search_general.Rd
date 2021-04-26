@@ -7,7 +7,9 @@
 search_general(data, term)
 }
 \arguments{
-\item{term}{}
+\item{data}{Imported mdJSON data}
+
+\item{term}{Term to search for}
 }
 \value{
 A subset of resources that contain the specified term

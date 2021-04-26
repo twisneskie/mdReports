@@ -3,8 +3,8 @@
 #' Searches for records that contain a specified term in any part of the
 #' metadata.
 #'
-#' @param data
-#' @param term
+#' @param data Imported mdJSON data
+#' @param term Term to search for
 #'
 #' @return A subset of resources that contain the specified term
 #' @export
@@ -32,8 +32,8 @@ search_general <- function(data, term) {
 #'
 #' Searches for resources that contain a specific taxon.
 #'
-#' @param data
-#' @param taxon
+#' @param data Imported mdJSON data
+#' @param taxon Taxon to search for
 #'
 #' @return A subset of resources that contain a specific taxon.
 #' @export
