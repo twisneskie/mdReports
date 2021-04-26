@@ -9,11 +9,13 @@
 #' @param project_names If `project_names = TRUE`, a column will be added
 #' with the top level directory after the path given as project names.
 #'
-#' @return A tibble containing imported JSON and,
-#' if `project_names = TRUE`, projects names for imported JSON files.
+#' @return A tibble containing imported mdJSON metadata. Tibble
+#' columns include metadata identifier and namespace, the top level metadata
+#' elements, and, if `project_names = TRUE`, projects names for imported mdJSON
+#' files.
 #' @export
 
-import_mdJSON <- function(path = getwd(), project_names = TRUE) {
+import_mdJSON <- function(path, project_names = TRUE) {
 
   # Get list of JSON files in the selected directory
   files <- list.files(path,
@@ -21,7 +23,7 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
                       recursive = TRUE,
                       full.names = TRUE)
 
-  # Import JSON files
+  # Import JSON files into R
   json <- files %>%
 
     purrr::map(jsonlite::fromJSON) %>%
@@ -57,7 +59,7 @@ import_mdJSON <- function(path = getwd(), project_names = TRUE) {
 
   }
 
-  # Unpack resources into the top level components: schema, contact, metadata,
+  # Unpack resources into the top level elements: schema, contact, metadata,
   # metadata repository, and data dictionary
   json <- tidyr::hoist(json,
                        "resources",
