@@ -4,13 +4,21 @@
 \alias{report_overview}
 \title{Report overview of project metadata}
 \usage{
-report_overview(data, contacts, output_name, output_dir)
+report_overview(
+  data,
+  contact_person = "principalInvestigator",
+  essential_personnel = c("AKRegionDataTrustee", "AKRegionDataSteward",
+    "AKRegionDataTrustee"),
+  output_name,
+  output_dir
+)
 }
 \arguments{
-\item{data}{Flattened metadata created by the function
-\code{flatten_mdJSON()}.}
+\item{data}{Imported mdJSON files.}
 
-\item{contacts}{List of contacts from the metadata with their metadata IDs.}
+\item{contact_person}{The role for the project's point of contact}
+
+\item{essential_personnel}{Essential personnel titles for projects.}
 
 \item{output_name}{Name to be given to the report generated.}
 

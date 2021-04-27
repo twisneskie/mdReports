@@ -6,19 +6,23 @@
 #' products, a searchable table of all ongoing project details, and a table of
 #' critical project personnel.
 #'
-#' @param data Flattened metadata created by the function
-#' `flatten_mdJSON()`.
-#' @param contacts List of contacts from the metadata with their metadata IDs.
+#' @param data Imported mdJSON files.
+#' @param contact_person The role for the project's point of contact
+#' @param essential_personnel Essential personnel titles for projects.
 #' @param output_name Name to be given to the report generated.
 #' @param output_dir Directory that the report should be generated in.
 #'
 #' @return An html report containing project details.
 #' @export
 report_overview <- function(data,
-                            contacts,
+                            contact_person = "principalInvestigator",
+                            essential_personnel = c("AKRegionDataTrustee",
+                                                    "AKRegionDataSteward",
+                                                    "AKRegionDataTrustee"),
                             output_name,
                             output_dir){
 
+  # Construct file path to report template
   directory <- "inst\\rmarkdown\\templates\\projects-overview\\skeleton"
 
   file <- "report_overview.Rmd"
@@ -27,97 +31,17 @@ report_overview <- function(data,
                      file,
                      sep = "\\")
 
+  # Partially flatten mdJSON tibble
+  data <- flatten_mdJSON(data)
+
+  # Render html reports
   rmarkdown::render(template,
                     params = list(data = data,
-                                  contacts = contacts),
+                                  contact_person = contact_person,
+                                  essential_personnel = essential_personnel),
                     output_file = paste0(output_name,
+                                         "_",
                                          as.Date(Sys.Date()),
                                          ".html"),
                     output_dir = output_dir)
-}
-
-# Helper functions -------------------------------------------------------------
-
-# Table for chunk 2: list.projects
-listProjects <- function(data, contacts) {
-
-  projectList <- data %>%
-
-    reformat_personnel(contacts,
-                       personnel = c("principalInvestigator"))
-
-  dplyr::filter(projectList,
-                projectList$type == "project") %>%
-
-    dplyr::select("title",
-                  "projectName",
-                  "principalInvestigator")
-
-}
-
-# Table for chunk 3: types.of.products
-typesProducts <- function(data) {
-
-  productTable <- data %>%
-
-    dplyr::select("type")
-
-
-  productTable <- dplyr::filter(productTable,
-                                productTable$type != "project")
-
-
-  productTable <- productTable %>%
-
-    dplyr::group_by(dplyr::across(c("type"))) %>%
-
-    dplyr::count() %>%
-
-    dplyr::ungroup()
-
-
-  tibble::add_row(productTable,
-                  type = "Total",
-                  n = sum(productTable$n))
-
-}
-
-# Table for chunk 4: ongoing.projects
-ongoingProjects <- function(data, contacts) {
-
-  ongoingTable <- data %>%
-
-    reformat_personnel(contacts,
-                       personnel = c("principalInvestigator"))
-
-  dplyr::filter(ongoingTable,
-                ongoingTable$type == "project",
-                ongoingTable$status == "onGoing") %>%
-
-    dplyr::select("title",
-                  "projectName",
-                  "startDate",
-                  "endDate",
-                  "principalInvestigator")
-
-}
-
-# Table for chunk 5: dm.personnel
-dmPersonnel <- function(data, contacts) {
-
-  personnelTable <- reformat_personnel(data,
-                                       contacts,
-                                       personnel = c("AKRegionDataTrustee",
-                                                     "AKRegionDataSteward",
-                                                     "AKRegionDataCustodian"))
-
-    dplyr::filter(personnelTable,
-                  personnelTable$type == "project",
-                  personnelTable$status == "onGoing") %>%
-
-    dplyr::select("title",
-                  "AKRegionDataTrustee",
-                  "AKRegionDataSteward",
-                  "AKRegionDataCustodian")
-
 }

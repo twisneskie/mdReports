@@ -6,9 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
 
-contacts <- get_contacts(data)
+knitr::opts_chunk$set(echo = FALSE)
 
 ```
 
@@ -16,27 +15,47 @@ contacts <- get_contacts(data)
 ### All Projects with Metadata
 
 ```{r list.projects}
-listProjects(data, contacts) %>%
+# Filter resources to just products and select title, project name, and contact
+# role, if present
+dplyr::filter(data,
+              data$type == "project") %>%
+
+  dplyr::select(dplyr::any_of(c(Title = "title",
+                                "Project Name" = "projectName",
+                                contact_person))) %>%
   
+  # Create an interactive table of the results
   DT::datatable(filter = "top",
                 options = list(pageLength = 5,
                                lengthMenu = c(5, 10, 15, 20)),
                 autoHideNavigation = getOption("DT.autoHideNavigation", 
-                                           TRUE),
-                colnames = c("Title",
-                             "Project Code",
-                             "Principal Investigator"))
+                                           TRUE))
 
 ```
 
 ### Types of Data Products
 ```{r types.of.products}
+# Count the number of each resource type
+productTable <- dplyr::filter(data, data$type != "project") %>%
+  
+  dplyr::select("type") %>%
+  
+  dplyr::group_by(dplyr::across(c("type"))) %>%
+  
+  dplyr::count() %>%
+  
+  dplyr::ungroup()
 
-products <- typesProducts(data)
+# Count the number of product types
+rows <- nrow(productTable)
 
-rows <- nrow(products) - 1
+# Add a summary row
+productTable <- tibble::add_row(productTable,
+                                type = "Total",
+                                n = sum(productTable$n))
 
-products %>%
+# Create a formatted table to display the results
+productTable %>%
   
   knitr::kable(col.names = c("Resource Type",
                              "N")) %>%
@@ -51,33 +70,39 @@ products %>%
 
 ### All Ongoing Projects
 ```{r ongoing.projects}
-ongoingProjects(data, contacts) %>%
+data %>%
+
+  dplyr::filter(data$type == "project",
+                data$status == "onGoing") %>%
+
+  dplyr::select(dplyr::any_of(c(Title = "title",
+                                "Project Name" = "projectName",
+                                "Start Date" = "startDate",
+                                "End Date" = "endDate",
+                                contact_person))) %>%
   
   DT::datatable(filter = "top",
                 options = list(pageLength = 5,
                                lengthMenu = c(5, 10, 15, 20)),
                 autoHideNavigation = getOption("DT.autoHideNavigation",
-                                               TRUE),
-                colnames = c("Title",
-                             "Project Code",
-                             "Start Date",
-                             "End Date",
-                             "Principal Investigator"))
+                                               TRUE))
 ```
 
 ### Data Management Personnel
 Lists required data management personnel for all ongoing projects. Empty cells indicate the role has not been assigned for that project.
 ```{r dm.personnel}
-dmPersonnel(data, contacts) %>%
+data %>%
+  
+  dplyr::filter(data$type == "project",
+                data$status == "onGoing") %>%
+  
+  dplyr::select(dplyr::any_of(c(Title = "title",
+                                essential_personnel))) %>%
   
   DT::datatable(filter = "top",
                 options = list(pageLength = 5,
                                lengthMenu = c(5, 10, 15, 20)),
                 autoHideNavigation = getOption("DT.autoHideNavigation",
-                                               TRUE),
-                colnames = c("Title",
-                             "Data Trustee",
-                             "Data Steward",
-                             "Data Custodian"))
+                                               TRUE))
 ```
 
