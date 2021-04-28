@@ -8,7 +8,7 @@ report_overview(
   data,
   contact_person = "principalInvestigator",
   essential_personnel = c("AKRegionDataTrustee", "AKRegionDataSteward",
-    "AKRegionDataTrustee"),
+    "AKRegionDataCustodian"),
   output_name,
   output_dir
 )
