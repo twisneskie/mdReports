@@ -112,7 +112,7 @@ project_summary <- function(data,
 
   # Filter results to requested projects and select important project
   # information
-  dplyr::filter(data,
+ dplyr::filter(data,
                 data$type == "project",
                 data$projectName %in% project_list) %>%
 
@@ -132,14 +132,15 @@ project_summary <- function(data,
                  "metadataCitation",
                  "resourceType") %>%
 
-    tidyr::hoist("metadataCitation", "identifier") %>%
+    tidyr::hoist("metadataCitation",
+                 metadataCitationIdentifier = "identifier") %>%
 
     tidyr::unnest(c("resourceCitation",
-                    "identifier",
+                    "metadataCitationIdentifier",
                     "resourceType")) %>%
 
     # Get metadata identifier for the associated product
-    tidyr::hoist("identifier", metaId = "identifier") %>%
+    tidyr::hoist("metadataCitationIdentifier", metaId = "identifier") %>%
 
     # Get the associated resource type
     tidyr::hoist("resourceType", productType = "type") %>%

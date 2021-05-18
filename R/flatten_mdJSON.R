@@ -29,7 +29,8 @@ flatten_mdJSON <- function(data) {
                  "pointOfContact",
                  "abstract",
                  "status",
-                 "timePeriod") %>%
+                 "timePeriod",
+                 "resourceMaintenance") %>%
 
     tidyr::hoist("citation",
                  "title") %>%
@@ -39,7 +40,8 @@ flatten_mdJSON <- function(data) {
                                   "timePeriod",
                                   "pointOfContact",
                                   "status",
-                                  "resourceDistribution")),
+                                  "resourceDistribution",
+                                  "resourceMaintenance")),
                   keep_empty = TRUE) %>%
 
     tidyr::unnest(dplyr::any_of(c("resourceType",
@@ -47,8 +49,13 @@ flatten_mdJSON <- function(data) {
                                   "status")),
                   keep_empty = TRUE) %>%
 
+    tidyr::unnest(dplyr::any_of(c("resourceMaintenance")),
+                  names_sep = ".",
+                  keep_empty = TRUE) %>%
+
     # Give resource "name" a unique and meaningful name
-    dplyr::rename(resourceName = "name")
+    dplyr::rename(resourceName = "name",
+                  frequency = "resourceMaintenance.frequency")
 
   # Add columns for startDate and endDate
   flat <- dplyr::mutate(flat,

@@ -1,11 +1,11 @@
-#' Import mdJSON files
+#' Import mdJSON metadata
 #'
-#' Converts mdJSON files into a tibble for further analysis in R.
+#' Converts mdJSON metadata files into a tibble for further analysis in R.
 #' The `import_mdJSON()` function can also add a column for project names,
 #' derived from the name of the top level folders in the file path given to
 #' import mdJSON files.
 #'
-#' @param path Path to directory that will be searched for mdJSON files.
+#' @param path Path to directory that will be searched for metadata files.
 #' @param project_names If `project_names = TRUE`, a column will be added
 #' with the top level directory after the path given as project names.
 #'
