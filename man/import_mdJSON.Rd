@@ -2,12 +2,12 @@
 % Please edit documentation in R/import_mdJSON.R
 \name{import_mdJSON}
 \alias{import_mdJSON}
-\title{Import mdJSON files}
+\title{Import mdJSON metadata}
 \usage{
 import_mdJSON(path, project_names = TRUE)
 }
 \arguments{
-\item{path}{Path to directory that will be searched for mdJSON files.}
+\item{path}{Path to directory that will be searched for metadata files.}
 
 \item{project_names}{If \code{project_names = TRUE}, a column will be added
 with the top level directory after the path given as project names.}
@@ -19,7 +19,7 @@ elements, and, if \code{project_names = TRUE}, projects names for imported mdJSO
 files.
 }
 \description{
-Converts mdJSON files into a tibble for further analysis in R.
+Converts mdJSON metadata files into a tibble for further analysis in R.
 The \code{import_mdJSON()} function can also add a column for project names,
 derived from the name of the top level folders in the file path given to
 import mdJSON files.

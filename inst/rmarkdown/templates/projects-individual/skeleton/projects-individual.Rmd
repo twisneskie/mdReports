@@ -42,31 +42,49 @@ project %>%
   
   tidyr::unnest("data") %>%
   
+  dplyr::mutate(uri = ifelse(uri == "NULL",
+                             NA,
+                             uri)) %>%
+
+  tidyr::unnest_longer("uri") %>%
+  
+  dplyr::mutate(location = stringr::str_extract(uri,
+                                           "(?<=\\.)([:alpha:]+$)") %>%
+                stringr::str_to_upper()) %>%
+  
+  dplyr::mutate(location = stringr::str_c('<a href="',
+                                          uri,
+                                          '">',
+                                          location,
+                                          '</a>'),
+                .keep = "unused") %>%
+  
+  dplyr::group_by(dplyr::across(-c("location"))) %>%
+  
+  tidyr::nest() %>%
+  
+  dplyr::ungroup() %>%
+  
+  tidyr::unnest_wider("data") %>%
+  
+  tidyr::unnest_wider("location",
+                      names_sep = ".") %>%
+  
+  tidyr::unite("location",
+               tidyr::contains("."),
+               sep = ", ",
+               na.rm = TRUE) %>%
+
+  
   dplyr::mutate(hasMetadata = dplyr::if_else(is.na(status), 
                                             "Intitiated", 
                                             "Completed"),
                 dataOriginator = dplyr::if_else(dataOriginator == "",
                                                 "None assigned",
                                                 dataOriginator),
-                uri = dplyr::if_else(is.na(uri),
+                location = dplyr::if_else(location == "",
                                      "File Not Archived",
-                                     uri)) %>%
-  
-  dplyr::select("title",
-                "productType",
-                "hasMetadata",
-                "dataOriginator",
-                "uri") %>%
-  
-  dplyr::mutate(location = stringr::str_extract(uri,
-                                           "(?<=\\.)([:alpha:]+$)") %>%
-                  stringr::str_to_upper()) %>%
-  
-  dplyr::mutate(location = stringr::str_c('<a href="',
-                                          uri,
-                                          '">',
-                                          location,
-                                          '</a>')) %>%
+                                     location)) %>%
   
   dplyr::select("title",
                 "productType",

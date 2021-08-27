@@ -51,16 +51,31 @@ flatten_mdJSON <- function(data) {
 
     tidyr::unnest(dplyr::any_of(c("resourceMaintenance")),
                   names_sep = ".",
-                  keep_empty = TRUE) %>%
+                  keep_empty = TRUE)
 
-    # Give resource "name" a unique and meaningful name
-    dplyr::rename(resourceName = "name",
-                  frequency = "resourceMaintenance.frequency")
+  # Give resource "name" a unique and meaningful name
+  if ("name" %in% colnames(flat)){
+
+    flat <- dplyr::rename(flat, resourceName = "name")
+
+  }
+
+  # Rename resourceMaintenance.frequency something more reasonable
+  if ("resourceMaintenance.frequency" %in% colnames(flat)) {
+    flat <- dplyr::rename(flat, frequency = "resourceMaintenance.frequency")
+  }
 
   # Add columns for startDate and endDate
-  flat <- dplyr::mutate(flat,
-                        startDate = as.Date(flat$startDateTime),
-                        endDate = as.Date(flat$endDateTime))
+  if ("startDateTime" %in% colnames(flat)) {
+
+    flat <- dplyr::mutate(flat, startDate = as.Date(flat$startDateTime))
+
+  }
+  if ("endDateTime" %in% colnames(flat)) {
+
+    flat <- dplyr::mutate(flat, endDate = as.Date(flat$endDateTime))
+
+  }
 
   # Reformat personnel so that each role is a column that contains people in
   # that role as a comma separated list with their emails.
@@ -84,7 +99,7 @@ flatten_mdJSON <- function(data) {
   # Extract file location, if it exists
   possibly_extract <- purrr::possibly(extract_resourceDistribution,
                                       otherwise = dplyr::mutate(flat,
-                                                                uri = "NULL"))
+                                                                uri = NA))
   flat <- possibly_extract(flat)
 
 }
