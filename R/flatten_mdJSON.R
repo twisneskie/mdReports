@@ -15,14 +15,14 @@ flatten_mdJSON <- function(data) {
 
   flat <- data %>%
 
-    # Extract all fields under "metadata"
+    # Extract fields under "metadata"
     tidyr::hoist("metadata",
                  "resourceInfo",
                  "resourceLineage",
                  "resourceDistribution",
                  "associatedResource") %>%
 
-    # Extract all fields under "resourceInfo"
+    # Extract fields under "resourceInfo"
     tidyr::hoist("resourceInfo",
                  "resourceType",
                  "citation",
@@ -53,14 +53,13 @@ flatten_mdJSON <- function(data) {
                   names_sep = ".",
                   keep_empty = TRUE)
 
-  # Give resource "name" a unique and meaningful name
+  # Rename fields to be unique and meaningful as necessary
   if ("name" %in% colnames(flat)){
 
     flat <- dplyr::rename(flat, resourceName = "name")
 
   }
 
-  # Rename resourceMaintenance.frequency something more reasonable
   if ("resourceMaintenance.frequency" %in% colnames(flat)) {
     flat <- dplyr::rename(flat, frequency = "resourceMaintenance.frequency")
   }
@@ -206,7 +205,7 @@ reformat_personnel <- function(data,
 # parentheses
 unnest_personnel <- function(reformatted, role, contacts) {
 
-  reformatted <- reformatted %>%
+  test <- reformatted %>%
 
     tidyr::unnest_wider(role) %>%
 
@@ -218,7 +217,44 @@ unnest_personnel <- function(reformatted, role, contacts) {
 
     dplyr::left_join(contacts, by = "contactId") %>%
 
-    dplyr::select(-"contactId") %>%
+    dplyr::select(-"contactId")
+
+  # This section isn't working, but its also not causing it to fail
+  possibly_email <- purrr::possibly(join_email,
+                                      otherwise =
+                                        dplyr::select(test,
+                                                      -"electronicMailAddress") %>%
+                                      dplyr::rename(!!role := "name"))
+  test <- test %>%
+
+    possibly_email()
+
+}
+
+# Condenses multiple people with the same data management role one comma
+# separated line for display
+condense_personnel <- function(reformatted, role) {
+
+  reformatted %>%
+
+    tidyr::unnest_wider(role) %>%
+
+    tidyr::unnest_wider("person", names_sep = ".") %>%
+
+    tidyr::unite("person",
+                 dplyr::contains("."),
+                 sep = ", ",
+                 na.rm = TRUE) %>%
+
+    dplyr::rename(!!role := "person")
+
+}
+
+# Turn emails for a contact into a comma-separated list
+# surrounded by parentheses
+join_email <- function(reformatted) {
+
+  reformatted_email <- reformatted %>%
 
     tidyr::unnest_wider("electronicMailAddress",
                         names_sep = ".") %>%
@@ -230,9 +266,9 @@ unnest_personnel <- function(reformatted, role, contacts) {
 
   # Get rid of leading/trailing spaces in emails
   # and add a closing parentheses
-  reformatted <- dplyr::mutate(reformatted,
+  reformatted_email <- dplyr::mutate(reformatted_email,
                                electronicMailAddress =
-                                 reformatted$electronicMailAddress %>%
+                                 reformatted_email$electronicMailAddress %>%
                                  stringr::str_trim() %>%
                                  stringr::str_c(")") %>%
                                  dplyr::na_if(")")) %>%
@@ -257,24 +293,4 @@ unnest_personnel <- function(reformatted, role, contacts) {
                  na.rm = TRUE) %>%
 
     dplyr::ungroup()
-
-}
-
-# Condenses multiple people with the same data management role one comma
-# separated line for display
-condense_personnel <- function(reformatted, role) {
-
-  reformatted %>%
-
-    tidyr::unnest_wider(role) %>%
-
-    tidyr::unnest_wider("person", names_sep = ".") %>%
-
-    tidyr::unite("person",
-                 dplyr::contains("."),
-                 sep = ", ",
-                 na.rm = TRUE) %>%
-
-    dplyr::rename(!!role := "person")
-
 }
