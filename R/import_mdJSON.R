@@ -1,76 +1,38 @@
 #' Import mdJSON metadata
 #'
 #' Converts metadata files using the mdJSON metadata standard into a tibble
-#' for further analysis in R. The `import_mdJSON()` function can also add a
-#' column for project names, derived from the name of the top level folders in
-#' the file path given to import mdJSON files.
+#' for further analysis in R. This function may take several minutes to run,
+#' depending on the number of folders and JSON files in the given directory.
 #'
 #' @param path Path to directory that will be searched for metadata files.
-#' @param project_names If `project_names = TRUE`, a column will be added
-#' with the top level directory after the path given as project names.
-#'
 #' @return A tibble containing imported mdJSON metadata. Tibble
-#' columns include metadata identifier and namespace, the top level metadata
-#' elements, and, if `project_names = TRUE`, projects names for imported mdJSON
-#' files.
+#' columns include metadata identifier and the top level metadata elements.
 #' @export
 
-import_mdJSON <- function(path, project_names = TRUE) {
+import_mdJSON <- function(path) {
 
-  # Get list of JSON files in the selected directory
-  files <- list.files(path,
-                      pattern = "*.json",
-                      recursive = TRUE,
-                      full.names = TRUE)
-
-  # Import JSON files into R
-  json <- files %>%
-
-    purrr::map(jsonlite::fromJSON) %>%
+  # Import JSON files from the selected directory into a tibble of the top
+  # level elements: schema, contact, metadata, metadata repository, and
+  # data dictionary
+  json <- purrr::map(list.files(path,
+                                pattern = "*.json",
+                                recursive = TRUE,
+                                full.names = TRUE),
+                     jsonlite::fromJSON) %>%
 
     tibble::tibble() %>%
 
-    dplyr::rename(resources = ".")
+    dplyr::rename(resources = ".") %>%
 
+    tidyr::hoist("resources",
+                 "metadata",
+                 "schema",
+                 "contact",
+                 "metadataRepository",
+                 "dataDictionary")
 
-  if (project_names == TRUE) {
-
-    # Get the project name from the top level directory after the file path
-    pathRemove <- paste0(stringr::str_replace_all(path,
-                                                  "\\\\",
-                                                  "\\\\\\\\"))
-
-    projName <- stringr::str_remove(files, pathRemove) %>%
-
-      stringr::str_extract("(?<=[//])(.*?)(?=[//])") %>%
-
-      tibble::tibble() %>%
-
-      dplyr::rename(projectName = ".") %>%
-
-      tibble::rownames_to_column(var = "row")
-
-
-    json <- tibble::rownames_to_column(json, var = "row") %>%
-
-      dplyr::left_join(projName, by = "row") %>%
-
-      dplyr::select(-row)
-
-  }
-
-  # Unpack resources into the top level elements: schema, contact, metadata,
-  # metadata repository, and data dictionary
-  json <- tidyr::hoist(json,
-                       "resources",
-                       "metadata",
-                       "schema",
-                       "contact",
-                       "metadataRepository",
-                       "dataDictionary")
-
-  # Drop items that don't have the metadata section
-  # (i.e. non-mdJSON files, such as mdEditor files)
+  # Drop rows that aren't from mdJSON files
+  # (i.e. mdEditor files, JSON data products)
   dplyr::filter(json, json$metadata != "NULL") %>%
 
     # Extract out metadata identifier from metadata
@@ -78,12 +40,12 @@ import_mdJSON <- function(path, project_names = TRUE) {
 
     tidyr::hoist("metadataInfo", "metadataIdentifier") %>%
 
-    # Unnest into identifier and namespace
     tidyr::unnest_wider("metadataIdentifier") %>%
 
-    # Give identifier a unique and meaningful name
+    # Give the identifier a meaningful column name
     dplyr::rename(metaId = "identifier") %>%
 
+    # Drop unnecessary columns
     dplyr::select(-dplyr::any_of(c("namespace",
                                    "resources")))
 
