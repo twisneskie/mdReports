@@ -11,14 +11,13 @@
 
 import_mdJSON <- function(path) {
 
-  # Import JSON files from the selected directory into a tibble of the top
-  # level elements: schema, contact, metadata, metadata repository, and
-  # data dictionary
+  # Import JSON files from the selected directory into a tibble of some of the
+  # top level elements: contact, metadata, and data dictionary
   json <- purrr::map(list.files(path,
                                 pattern = "*.json",
                                 recursive = TRUE,
                                 full.names = TRUE),
-                     jsonlite::fromJSON) %>%
+                     rjson::fromJSON) %>%
 
     tibble::tibble() %>%
 
@@ -26,9 +25,7 @@ import_mdJSON <- function(path) {
 
     tidyr::hoist("resources",
                  "metadata",
-                 "schema",
                  "contact",
-                 "metadataRepository",
                  "dataDictionary")
 
   # Drop rows that aren't from mdJSON files
