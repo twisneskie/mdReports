@@ -17,9 +17,9 @@ import_mdJSON <- function(path) {
                                 pattern = "*.json",
                                 recursive = TRUE,
                                 full.names = TRUE),
-                     rjson::fromJSON) %>%
+                     jsonlite::fromJSON) %>%
 
-    tibble::tibble() %>%
+    tidyr::tibble() %>%
 
     dplyr::rename(resources = ".") %>%
 
