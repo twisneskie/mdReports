@@ -4,23 +4,25 @@
 \alias{import_mdJSON}
 \title{Import mdJSON metadata}
 \usage{
-import_mdJSON(path, project_names = TRUE)
+import_mdJSON(
+  program = "fes",
+  path = "\\\\\\\\ifw7ro-file.fws.doi.net\\\\datamgt"
+)
 }
 \arguments{
-\item{path}{Path to directory that will be searched for metadata files.}
+\item{program}{The program the report will be generated for. Choose from
+"fes", "mbm", "nwrs", "osm", "sa", or "all".}
 
-\item{project_names}{If \code{project_names = TRUE}, a column will be added
-with the top level directory after the path given as project names.}
+\item{path}{Path to directory that will be searched for metadata files.}
 }
 \value{
-A tibble containing imported mdJSON metadata. Tibble
-columns include metadata identifier and namespace, the top level metadata
-elements, and, if \code{project_names = TRUE}, projects names for imported mdJSON
-files.
+A tibble containing imported mdJSON metadata records. Each row is a
+unique record
 }
 \description{
-Converts mdJSON metadata files into a tibble for further analysis in R.
-The \code{import_mdJSON()} function can also add a column for project names,
-derived from the name of the top level folders in the file path given to
-import mdJSON files.
+Gathers metadata files using the mdJSON metadata standard from a chosen
+program directory (or all program directories) in the Alaska Regional Data
+Repository into a tibble for further analysis in R. This function may take
+several minutes to run, depending on the number of folders and JSON files in
+the given directory.
 }

@@ -28,7 +28,8 @@ report_overview(
 An html report containing project details.
 }
 \description{
-Generates an html report showing details on all imported projects.
+Generates an html report showing details on all projects for a single
+program.
 }
 \details{
 Reports contain a list of all projects, the number and types of data
