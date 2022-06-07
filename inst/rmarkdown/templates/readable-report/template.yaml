@@ -1,0 +1,4 @@
+name: Readable Report
+description: >
+   Creates a human-readable metadata report
+create_dir: FALSE

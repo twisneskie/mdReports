@@ -1,0 +1,1649 @@
+---
+title: "`r resource$title`"
+output:
+  word_document:
+    reference_docx: "readable-report.docx"
+---
+
+```{r setup, include=FALSE}
+
+# Load in required packages
+pkg_list <- c("knitr",
+              "dplyr",
+              "ggplot2",
+              "sf",
+              "tidyjson",
+              "jsonlite",
+              "broom",
+              "geojson",
+              "geojsonio",
+              "ggmap")
+
+lapply(pkg_list, 
+       library, 
+       character.only = TRUE)
+
+# Set figure options
+ggplot2::theme_set(theme_bw())
+
+wrapper <- function(x, ...){
+  
+  paste(strwrap(x, ...), collapse = "\n")
+  
+}
+
+# Separate out list of contacts
+contacts <- get_contacts(resource)
+
+# Create function for tidy output of contacts and emails
+tidy_contacts <- function(pointOfContact){
+  
+  pointOfContact %>%
+    dplyr::select("role", "party") %>%
+    tidyr::unnest_wider("party") %>%
+    tidyr::unnest_longer("contactId") %>%
+    dplyr::left_join(contacts, by = "contactId") %>%
+    dplyr::select(-"contactId") %>%
+    tidyr::unnest_wider("electronicMailAddress",
+                        names_sep = ".") %>%
+    tidyr::unite("electronicMailAddress",
+                 tidyr::contains("."),
+                 sep = ", ",
+                 na.rm = TRUE) %>%
+    # Get rid of leading/trailing spaces in emails
+    # and add a closing parentheses
+    dplyr::mutate(electronicMailAddress = electronicMailAddress %>%
+                    stringr::str_trim() %>%
+                    stringr::str_c(")") %>%
+                    dplyr::na_if(")")) %>%
+    dplyr::group_by(dplyr::across(-c("name",
+                                     "electronicMailAddress"))) %>%
+    tidyr::unite("pointOfContact",
+                 c("name", "electronicMailAddress"),
+                 sep = " (",
+                 na.rm = TRUE) %>%
+    tidyr::nest() %>%
+    tidyr::unnest_wider("data") %>%
+    tidyr::unnest_wider("pointOfContact", names_sep = ".") %>%
+    tidyr::unite("pointOfContact",
+                 tidyr::contains("."),
+                 sep = ", ",
+                 na.rm = TRUE) %>%
+    dplyr::ungroup()
+  
+}
+
+# Create function to print dates
+print_dates <- function(dates){
+  
+  date <- dates %>% 
+    dplyr::select(c("dateType", "date")) %>%
+    dplyr::mutate(dateType = gsub('([[:upper:]])', ' \\1', dateType) %>%
+             stringr::str_to_sentence()) %>%
+    dplyr::mutate(dateType = stringr::str_c(dateType, " date")) %>%
+    dplyr::mutate(date = as.Date(date))
+    
+    for (j in 1:nrow(date)) {
+      
+      cat(stringr::str_c(date[j,]$dateType,
+                         ": ",
+                         date[j,]$date,
+                         "\n\n"))
+
+    }
+  
+}
+
+# Turn off display of code in final product 
+knitr::opts_chunk$set(echo = FALSE)
+
+```
+
+```{r metadata-information, results='asis'}
+
+metaInfo <- resource %>%
+  dplyr::select(metadataInfo) %>%
+  tidyr::hoist(metadataInfo,
+               "metadataStatus",
+               "metadataContact",
+               "metadataDate")
+
+# Print metadata status, if available
+if(!is.na(metaInfo$metadataStatus)) {
+  
+  cat(stringr::str_c("Metadata status: ",
+                     stringr::str_to_lower(metaInfo$metadataStatus),
+                     "\n\n"))
+  
+} 
+
+# Print metadata dates
+metaInfo %>% 
+  dplyr::select(metadataDate) %>%
+  tidyr::unnest(metadataDate) %>%
+  tidyr::unnest(metadataDate) %>%
+  print_dates()
+
+# Print metadata contacts
+cat("## Contacts For Metadata\n\n")
+
+pointOfContact <- metaInfo %>%
+  tidyr::unnest("metadataContact",
+                keep_empty = TRUE) %>%
+  tidyr::unnest("metadataContact",
+                keep_empty = TRUE) %>%
+  tidy_contacts() %>%
+  dplyr::mutate(role = gsub('([[:upper:]])', 
+                            ' \\1', 
+                            role) %>%
+                  stringr::str_to_sentence())
+
+for(j in 1:nrow(pointOfContact)){
+      
+      cat(stringr::str_c("**",
+                         pointOfContact[j,]$role,
+                         ":** ",
+                         pointOfContact[j,]$pointOfContact,
+                         "\n\n"))
+      
+}
+  
+```
+
+<!-- Repository: Collection title-->
+
+<!-- Basic resource information-->
+
+# Resource Details
+
+```{r resource-details, results='asis'}
+
+resourceType <- resource %>%
+  tidyr::unnest(resourceType) %>%
+  tidyr::unnest(resourceType)
+
+# Separate words within resource type and put in sentence case
+type <- gsub('([[:upper:]])', 
+             ' \\1', 
+             resourceType$type) %>% 
+  stringr::str_to_sentence()
+
+# Put resource name in parentheses, if it exists
+if(!is.na(resourceType$name)){
+  
+  resourceName <- stringr::str_c(" (", 
+                        resourceType$name, 
+                        ")")
+  
+} else {
+  
+  resourceName <- ""
+  
+}
+
+# Resource status should be all lowercase 
+resourceStatus <- resource %>%
+  dplyr::select(status) %>%
+  tidyr::unnest(status)
+
+status <- ""
+
+for(i in 1:nrow(resourceStatus)){
+  
+  status <- stringr::str_c(status, 
+                  stringr::str_to_lower(resourceStatus[i,]$status))
+  
+  if(i < nrow(resourceStatus)){
+    
+    status <- stringr::str_c(status,
+                    ", ")
+    
+  }
+}
+
+# Print type (resourceName): status
+cat(stringr::str_c(type,
+          resourceName,
+          ": ",
+          status,
+          "\n\n"))
+
+# Print time period
+timePeriod <- resource %>%
+  dplyr::select(timePeriod) %>%
+  tidyr::unnest(timePeriod) %>%
+  dplyr::mutate(startDate = as.Date(startDateTime))
+
+if("endDateTime" %in% colnames(timePeriod)){
+  
+  timePeriod <- dplyr::mutate(timePeriod, 
+                              endDate = as.Date(timePeriod$endDateTime))
+  
+  cat(stringr::str_c("Time Period: ",
+          timePeriod$startDate,
+          " -- ",
+          timePeriod$endDate,
+          "\n\n"))
+  
+} else {
+  
+  cat(stringr::str_c("Time Period: ",
+          timePeriod$startDate,
+          " -- ",
+          "\n\n"))
+  
+}
+
+if("description" %in% colnames(timePeriod)){
+  
+  cat(stringr::str_c(timePeriod$description,
+            "\n\n"))
+  
+}
+
+# If resource maintenance exists, extract the maintenance frequency
+maintenance <- dplyr::select(resource, resourceMaintenance)
+
+if(!is.na(maintenance$resourceMaintenance)){
+  
+  maintenance <- maintenance %>%
+    tidyr::unnest(resourceMaintenance) %>%
+    tidyr::unnest(resourceMaintenance) %>%
+    dplyr::mutate(frequency = stringr::str_to_lower(gsub('([[:upper:]])', 
+                                         ' \\1', 
+                                         frequency)))
+  
+  cat(stringr::str_c("Resource maintainance: ",
+            maintenance$frequency,
+            "\n\n"))
+  
+}
+
+# If there are more fields in the description section than just abstract,
+# create a description header
+if(!is.na(resource$shortAbstract) | !is.na(resource$purpose)){
+  
+  cat("## Description\n\n")
+  
+}
+
+# Print resource descriptors
+cat(stringr::str_c("**Abstract:** ",
+          resource$abstract,
+          "\n\n"))
+
+if(!is.na(resource$shortAbstract)){
+  
+  cat(stringr::str_c("**Short Abstract:** ",
+            resource$shortAbstract,
+            "\n\n"))
+  
+}
+
+if(!is.na(resource$purpose)){
+  
+  cat(stringr::str_c("**Purpose:** ",
+            resource$purpose,
+            "\n\n"))
+  
+}
+
+```
+
+## Resource Points of Contact
+
+```{r resource-contacts, results='asis'}
+
+pointOfContact <- resource %>%
+  tidyr::unnest("pointOfContact") %>%
+  tidyr::unnest("pointOfContact",
+                keep_empty = TRUE) %>%
+  tidy_contacts() %>%
+  dplyr::mutate(role = gsub('([[:upper:]])', 
+                     ' \\1', 
+                     role) %>%
+           stringr::str_to_sentence())
+
+for(j in 1:nrow(pointOfContact)){
+      
+      cat(stringr::str_c("**",
+                pointOfContact[j,]$role,
+                ":** ",
+                pointOfContact[j,]$pointOfContact,
+                "\n\n"))
+      
+}
+
+```
+
+## Citation Information
+
+```{r citation-information, results='asis'}
+citation <- resource %>% 
+  dplyr::select(title, citation) %>%
+  tidyr::hoist(citation, 
+        "alternateTitle",
+        "date",
+        "responsibleParty",
+        "onlineResource",
+        "identifier")
+
+alternateTitle <- citation %>%
+  dplyr::select("alternateTitle") %>%
+  tidyr::unnest(alternateTitle)
+
+# If alternate titles exist, put them in parentheses
+if(!is.na(citation$alternateTitle)){
+  
+  alternateTitle <- alternateTitle %>%
+    tidyr::unnest(alternateTitle)
+  
+  titleList <- ""
+
+  for(i in nrow(alternateTitle)){
+    
+    titleList <- stringr::str_c(titleList,
+                       stringr::str_trim(alternateTitle[i,]))
+  
+    if(i < nrow(alternateTitle)){
+    
+      titleList <- stringr::str_c(titleList,
+                         ", ")
+    
+    }
+  }
+  
+  cat(stringr::str_c(citation$title,
+            " (", 
+            titleList, 
+            ")\n\n"))
+  
+} else {
+  
+  cat(stringr::str_c(citation$title,
+            "\n\n"))
+  
+}
+
+# Print citation dates
+citation %>%
+  tidyr::unnest(date) %>%
+  tidyr::unnest(date) %>%
+  print_dates()
+
+# Print citation contacts
+cat("### Responsible Parties\n\n")
+
+pointOfContact <- citation %>%
+  tidyr::unnest("responsibleParty",
+                keep_empty = TRUE) %>%
+  tidyr::unnest("responsibleParty",
+                keep_empty = TRUE) %>%
+  tidy_contacts() %>%
+  dplyr::mutate(role = gsub('([[:upper:]])', 
+                     ' \\1', 
+                     role) %>%
+           stringr::str_to_sentence())
+
+for(j in 1:nrow(pointOfContact)){
+      
+      cat(stringr::str_c(pointOfContact[j,]$role,
+                ": ",
+                pointOfContact[j,]$pointOfContact,
+                "\n\n"))
+      
+}
+
+# If there is an online resource section, pull out that information
+if(!is.na(citation$onlineResource)){
+  
+  onlineResource <- citation %>%
+    dplyr::select(onlineResource) %>%
+    tidyr::unnest(onlineResource) %>%
+    tidyr::unnest(onlineResource)
+  
+  cat("### Online Resource\n\n")
+  
+  # Get URI with name, if available
+  if("name" %in% colnames(onlineResource)){
+    
+    name <- stringr::str_c("[", onlineResource$name, "]")
+    uri <- stringr::str_c("(", onlineResource$uri, ")")
+    
+  } else{
+    
+    uri <- onlineResource$uri
+    
+  }
+  
+  # Add slashes so it prints properly
+  uri <- gsub("\\\\", "\\\\\\\\", uri)
+  
+  # Get URI function, if applicable
+  if("function" %in% colnames(onlineResource)){
+    
+    onlineResource <- dplyr::rename(onlineResource, uriFunction = "function") %>% 
+      dplyr::mutate(uriFunction = gsub('([[:upper:]])', ' \\1', uriFunction) %>%
+           stringr::str_to_lower())
+    
+    uriFunction <- stringr::str_c(": ", onlineResource$uriFunction)
+      
+  }
+  
+  # Get online resource description, if applicable
+  if("description" %in% colnames(onlineResource)){
+    
+    description <- onlineResource$description
+    
+  }
+  
+  # Print [Name](URI): function
+  cat(stringr::str_c(name, 
+            uri, 
+            uriFunction,
+            "\n\n"))
+
+}
+
+# Print identifier, if it exists
+identifier <- dplyr::select(citation, identifier) %>%
+  tidyr::unnest(identifier)
+  
+if(!is.na(identifier$identifier)) {
+  
+  identifier <- tidyr::unnest(identifier, identifier)
+    
+  cat(stringr::str_c("### Identifier\n\n",
+            identifier$identifier,
+            " (",
+            identifier$namespace,
+            ")\n\n"))
+  
+}
+  
+```
+
+# Keywords
+
+```{r keywords, results='asis'}
+
+keywords <- resource %>%
+  dplyr::select(keyword) %>%
+  tidyr::unnest(keyword) %>%
+  tidyr::unnest(keyword)
+
+# Create keyword template
+# ### %thesaurus
+# keywords
+keywordTemplate <- "## %s\n\n%s"
+
+for(i in 1:nrow(keywords)){
+  
+  keyTitle <- keywords[i,]$thesaurus$title
+  wordList <- tidyr::unnest_wider(keywords[i,], keyword) %>%
+    dplyr::select(keyword) %>%
+    tidyr::unnest_wider(keyword, names_sep = ".") %>%
+    tidyr::unite("keyword",
+               tidyr::contains("."),
+               sep = "\n\n",
+               na.rm = TRUE) %>%
+    stringr::str_to_title() %>%
+    stringr::str_c("\n\n")
+  
+  cat(sprintf(keywordTemplate,
+              keyTitle,
+              wordList))
+  
+}
+
+```
+
+<!-- Can I put really zoomed in maps as an inset? -->
+
+```{r extent-maps, message=FALSE, warning=FALSE, results='asis'}
+
+# Extract geographic extent information
+extent <- resource %>%
+  dplyr::select(extent) %>%
+  tidyr::unnest(extent)
+
+# If the extent section exists...
+if(!is.na(extent$extent)){
+  
+  cat("# Extent\n\n")
+
+  # Pull out required sections
+  extent <- extent %>%
+    tidyr::unnest(extent) %>%
+    tidyr::hoist(geographicExtent, "boundingBox") %>%
+    tidyr::hoist(geographicExtent, "description") %>%
+    tidyr::hoist(geographicExtent, "geographicElement") %>%
+    tidyr::unnest(boundingBox) %>%
+    tidyr::unnest(geographicElement)
+
+  # Create maps for bounding boxes + features, if they exist
+  for(i in 1:nrow(extent)) {
+
+    # Map bounding boxes, if they exist
+    if(!is.na(extent$westLongitude[i])) {
+      
+      location <- c((extent$westLongitude[i]),
+                    (extent$southLatitude[i]),
+                    (extent$eastLongitude[i]),
+                    (extent$northLatitude[i]))
+      
+      boxMap <- ggplot2::annotate('rect',
+                         xmin = extent$westLongitude[i],
+                         xmax = extent$eastLongitude[i],
+                         ymin = extent$southLatitude[i],
+                         ymax = extent$northLatitude[i],
+                         color = "red",
+                         fill = "transparent")
+      
+      map <- ggmap::get_map(location = location,
+                   source = "stamen",
+                   maptype = "terrain",
+                   crop = FALSE)
+      
+      mapLabels <- ggplot2::labs(x = "",
+                        y = "")
+      
+    }
+
+    # Map features, if they exist
+    if(!is.na(extent$geographicElement[i])) {
+
+      # Convert features so they can be plotted with ggplot
+      geoJSON <- jsonlite::toJSON(extent$geographicElement[i]) %>%
+        stringr::str_sub(2, -2)
+
+      geoJSON <- stringr::str_c('{"type": "FeatureCollection", "features": ',
+                       geoJSON,
+                       '}') %>%
+        geojson::as.geojson() %>%
+        # If a geoJSON has a z axis, it won't convert to sp directly
+        # Read to sf and remove z axis if necessary
+        sf::read_sf() %>%
+        sf::st_zm() %>%
+        geojson::as.geojson() %>%
+        # Convert to tabular dataset for mapping
+        geojsonio::geojson_sp() %>%
+        broom::tidy() %>%
+        dplyr::rename(lon = "long")
+      
+      location <- ggmap::make_bbox(geoJSON$lon, geoJSON$lat)
+      
+      featuresMap <- ggplot2::geom_polygon(data = geoJSON, 
+                                  ggplot2::aes(group = group), 
+                                  alpha = 0.5,
+                                  color = "black") 
+      
+      map <- ggmap::get_map(location = location,
+                   source = "stamen",
+                   maptype = "terrain",
+                   crop = FALSE)
+      
+      mapLabels <- ggplot2::labs(x = "",
+                        y = "")
+      
+    }
+    
+    # Record the extent description
+    geographicDescription <- extent$description[i]
+
+    if(is.na(geographicDescription)){
+
+      geographicDescription <- ""
+
+    }
+
+    # If bounding box and/or features are plotted, description (if it exists)
+    if(exists("boundingBox") | exists("geoJSON")){
+      
+      
+      mapLabels <- ggplot2::labs(caption = wrapper(geographicDescription, 
+                                                   width = 40),
+                        x = "",
+                        y = "")
+
+      geographicDescription <- ""
+
+      print(ggmap(map) + boxMap + featuresMap + mapLabels)
+
+    }
+  }
+
+}
+
+```
+
+```{r lineage, results='asis'}
+lineage <- resource %>%
+  dplyr::select(resourceLineage) %>%
+  tidyr::unnest(resourceLineage)
+
+if("resourceLineage" %in% colnames(lineage)){
+  
+  cat("# Lineage\n\n")
+  
+  lineage <- lineage %>%
+    tidyr::unnest(resourceLineage)
+  
+  for(i in 1:nrow(lineage)){
+    
+    if(nrow(lineage) > 1){
+      
+      cat(stringr::str_c("## Lineage ",
+                i,
+                "\n\n"))
+      
+    }
+    
+    if("statement" %in% colnames(lineage)){
+      
+      cat(stringr::str_c(lineage[i,]$statement,
+              "\n\n"))
+      
+    }
+    
+    if("processStep" %in% colnames(lineage)){
+      
+      processStep <- lineage[i,] %>%
+        tidyr::unnest(processStep)
+      
+      for(j in 1:nrow(processStep)){
+        
+        cat(stringr::str_c("**Process Step ",
+                  j,
+                  ":** ",
+                  processStep[j,]$description,
+                  "\n\n"))
+        
+      }
+      
+    }
+    
+  }
+  
+}
+```
+
+::: {custom-style="Taxonomy"}
+```{r taxonomy, results='asis'}
+  
+# Extract taxonomy information from resourceInfo
+taxonomy <- resource %>%
+  dplyr::select(taxonomy) %>%
+  tidyr::unnest(taxonomy)
+
+# If this section exists...
+if(!is.na(taxonomy$taxonomy)){
+  
+  # give it a first-level header
+  cat("# Taxonomy\n\n")
+  
+  # extract lower-level elements
+  taxonomy <- taxonomy %>%
+    tidyr::unnest_wider(taxonomy) %>%
+    tidyr::unnest(taxonomicSystem) %>%
+    tidyr::unnest_wider(taxonomicSystem) %>%
+    tidyr::unnest_wider(citation) %>%
+    tidyr::unnest(taxonomicClassification) %>%
+    tidyr::unnest(taxonomicClassification)
+    
+  
+  for(i in 1:nrow(taxonomy)){
+    
+    tax <- taxonomy[i,]
+    
+    cat(stringr::str_c("## ",
+              tax$title,
+              "\n\n"))
+    
+    tax <- dplyr::select(tax,
+                  taxonomicSystemId,
+                  taxonomicLevel,
+                  taxonomicName,
+                  subClassification)
+  
+    tax[[tax$taxonomicLevel]] <- stringr::str_c("*",
+                                       tax$taxonomicName,
+                                       "* (",
+                                       tax$taxonomicSystemId,
+                                       ")")
+  
+    while("subClassification" %in% colnames(tax)){
+    
+      tax <- tax %>% 
+        dplyr::select(-dplyr::any_of(c('taxonomicName',
+                         'taxonomicSystemId',
+                         'taxonomicLevel',
+                         'isITIS',
+                         'commonName'))) %>%
+        tidyr::unnest(subClassification,
+               keep_empty = TRUE)
+      
+      for(j in 1:nrow(tax)){
+      
+        if(!is.na(tax[j,]$taxonomicLevel)){
+        
+          if("commonName" %in% colnames(tax)){
+          
+            if(tax[j,]$commonName != "NULL"){
+              commonName <- purrr::flatten(tax[j,]$commonName) %>%
+                paste(collapse = "/")
+            
+              commonName <- stringr::str_c(": **",
+                                  commonName,
+                                  "**")
+            
+            } else {
+            
+              commonName <- ""
+              
+            }
+          
+          } else {
+            
+            commonName <- ""
+          
+          }
+        
+          tax[j, tax[j,]$taxonomicLevel] <- stringr::str_c("*",
+                                                  tax[j,]$taxonomicName,
+                                                  "* (",
+                                                  tax[j,]$taxonomicSystemId,
+                                                  ")",
+                                                  commonName)
+        
+          tax <- tax %>% dplyr::relocate(tax[j,]$taxonomicLevel,
+                                  .after = last_col())
+        
+        }
+      }
+    }
+  
+    tax <- tax %>% 
+        dplyr::select(-dplyr::any_of(c('taxonomicName',
+                         'taxonomicSystemId',
+                         'taxonomicLevel',
+                         'isITIS',
+                         'commonName')))
+  
+    for(i in 1:nrow(tax)){
+      
+      for(j in 1:ncol(tax)){
+      
+        if(!is.na(tax[i,j])){
+        
+          if(i > 1){
+        
+            if(tax[i,j] !=  tax[(i - 1),j]){
+          
+              spaces <- strrep("&#10;", j)
+        
+              cat(stringr::str_c(spaces,
+                        "&#187;",
+                        colnames(tax)[j],
+                        ": ",
+                        tax[i,j],
+                        "\n\n"))
+          
+            }
+        
+          } else {
+        
+            spaces <- strrep("&#10;", j)
+        
+            cat(stringr::str_c(spaces,
+                      "&#187;",
+                      colnames(tax)[j],
+                      ": ",
+                      tax[i,j],
+                      "\n\n"))
+        
+          }
+        }
+      }
+    }
+  }
+}
+
+```
+:::
+<!--
+General Scope
+
+Identification Procedure
+
+Identification Completeness
+
+### Observers
+
+Role: Name
+
+### Voucher
+
+Specimen:
+
+Repository Role: Name -->
+
+```{r distribution, results='asis'}
+
+# Pull out distribution section
+distribution <- resource %>%
+  dplyr::select(resourceDistribution) %>%
+  tidyr::unnest(resourceDistribution)
+
+# If there is data in the distribution section...
+if("distributor" %in% colnames(distribution)){
+  
+  cat("# Distribution\n")
+  
+  # Set distribution template:
+  # ### Distribution %i
+  # %distDescription
+  # **Liability statement:** %liabilityStatement
+  distributionTemplate <- "%s\n\n%s\n\n"
+  
+  # Set distributor template:
+  # #### Distributor: %distributorName
+  distributorTemplate <- "%s\n\n"
+  
+  # Set transfer option template:
+  # ### Transfer Option %k
+  # %transferSize
+  transferTemplate <- "%s\n\n"
+  
+  # Set online option template:
+  # %uriString
+  # %transferDescription
+  onlineTemplate <- "%s\n\n%s\n\n"
+  
+  # For each distribution section...
+  for(i in 1:nrow(distribution)){
+      
+    # Record the distribution description, if it exists
+    if("description" %in% colnames(distribution)){
+      
+      distDescription <- distribution[i,]$description
+      
+    } else {
+      
+      distDescription <- ""
+    
+    }
+  
+    # Record the liability statement, if it exists
+    if("liabilityStatement" %in% colnames(distribution)){
+      
+      liabilityStatement <- distribution[i,]$liabilityStatement
+      liabilityStatement <- stringr::str_c("**Liability statement:** ",
+                                  liabilityStatement)
+      
+    } else {
+      
+      liabilityStatement <- ""
+    
+    }
+    
+    if(nrow(distribution) > 1){
+      
+      cat(stringr::str_c("## Distribution ",
+                i))
+      
+    }
+    
+    # Print distribution template with distribution information
+    cat(sprintf(distributionTemplate,
+                distDescription,
+                liabilityStatement))
+    
+    distributor <-distribution[i,]
+    
+    # For each distributor...
+    for(j in 1:nrow(distributor)){
+      
+      # Pull out distributor sections
+      distributor <- distributor %>% tidyr::hoist(distributor, "contact")
+    
+      # Pull out all of the distributor organizations
+      # Connect them to the contacts table (no email)
+      distributor <- distributor %>%
+        tidyr::unnest_wider(contact) %>%
+        tidyr::unnest(party) %>%
+        tidyr::unnest(party) %>%
+        dplyr::left_join(contacts, by = 'contactId') %>%
+        dplyr::select(-c("contactId", "electronicMailAddress")) %>%
+        tidyr::unnest(distributor)
+    
+      distributorName <- stringr::str_c("**Distributor**: ",
+                               distributor$name)
+      
+      cat(sprintf(distributorTemplate,
+                  distributorName))
+      
+      transferOption <- distributor %>%
+          dplyr::select(transferOption) %>%
+          tidyr::unnest(transferOption)
+      
+      # For each transfer option...
+      for(k in 1:nrow(transferOption)){
+        
+        # Get a transfer size, if it exists
+        if("transferSize" %in% colnames(transferOption)) {
+          
+          transferSize <- stringr::str_c("**Size:** ",
+                                transferOption[k,]$transferSize,
+                                " MB")
+    
+        } else {
+          
+          transferSize <- ""
+          
+        }
+        
+        # Print the transfer options template with its data
+        cat(sprintf(transferTemplate,
+                    transferSize))
+        
+        onlineOption <- transferOption[k,] %>% tidyr::unnest(onlineOption)
+        
+        # For each online option...
+        for(l in 1:nrow(onlineOption)){
+          
+          # Rename the "function" column if it exists since that is a 
+          # reserved word in R
+          if("function" %in% colnames(onlineOption)){
+            
+            onlineOption <- dplyr::rename(onlineOption,
+                                     transferFunction = "function")
+          }
+          
+          # Get the name, uri, and function
+          if("name" %in% colnames(onlineOption)){
+            
+            name <- stringr::str_c("[",
+                          onlineOption[l,]$name,
+                          "]")
+            uri <- stringr::str_c("(",
+                         onlineOption[l,]$uri,
+                         ")")
+    
+          } else {
+            
+            name <- ""
+            uri <- onlineOption[l,]$uri
+    
+          }
+  
+          if("transferFunction" %in% colnames(onlineOption)){
+            
+            transferFunction <- gsub('([[:upper:]])', 
+                                     ' \\1', 
+                                     onlineOption[l,]$transferFunction)
+            transferFunction <- stringr::str_c(": ", onlineOption[l,]$transferFunction)
+            
+          }
+          
+          # Put name, uri, and function in one line
+          uri <- gsub("\\\\", "\\\\\\\\", uri)
+          uriString <- stringr::str_c(name, uri, transferFunction)
+    
+          # Get a description, if it exists
+          if("description" %in% colnames(onlineOption)){
+            transferDescription <- onlineOption[l,]$description
+            
+          } else {
+            
+            transferDescription <- ""
+          
+          }
+          
+          cat(sprintf(onlineTemplate,
+                      uriString,
+                      transferDescription))
+          
+        }
+      }
+    }
+    
+    if(i < nrow(distribution)){
+      
+      cat("****\n\n")
+      
+    }
+  }
+
+}
+  
+```
+
+```{r constraints, results='asis'}
+
+constraint <- resource %>%
+  dplyr::select(constraint) %>%
+  tidyr::unnest(constraint)
+
+if(!is.na(constraint$constraint)){
+  
+  cat("# Constraints\n\n")
+  
+  constraint <- constraint %>%
+    tidyr::hoist(constraint,
+          "type",
+          "legal",
+          "useLimitation",
+          "security") %>%
+    tidyr::unnest(c(legal,
+             useLimitation,
+             security))
+  
+  for(i in 1:nrow(constraint)){
+    
+    cat(stringr::str_c("## ",
+              stringr::str_to_title(constraint[i,]$type),
+              " Constraints\n\n"))
+    if(constraint[i,]$type == "use"){
+      
+      cat(stringr::str_c("Use Limitations: ",
+                constraint[i,]$useLimitation,
+                "\n\n"))
+      
+    } else if(constraint[i,]$type == "legal"){
+      
+      cat(stringr::str_c("Access Constraint: ",
+                gsub('([[:upper:]])', 
+                     ' \\1', 
+                     constraint[i,]$accessConstraint) %>%
+                  stringr::str_to_sentence(),
+                "\n\n"))
+      
+      cat(stringr::str_c("Use Constraint: ",
+                gsub('([[:upper:]])', 
+                     ' \\1', 
+                     constraint[i,]$useConstraint) %>%
+                  stringr::str_to_sentence(),
+                "\n\n"))
+      
+      if("otherConstraint" %in% colnames(constraint)){
+        
+        cat(stringr::str_c("Other Constraints: ",
+                  constraint[i,]$otherConstraint,
+                  "\n\n"))
+        
+      }
+      
+    } else {
+      
+      cat(stringr::str_c("Security Classification: ",
+                gsub('([[:upper:]])', 
+                     ' \\1', 
+                     constraint[i,]$classification) %>%
+                  stringr::str_to_sentence(),
+                "\n\n"))
+      
+      if("userNote" %in% colnames(constraint)){
+        
+        cat(stringr::str_c("User Note: ",
+                  constraint[i,]$userNote,
+                  "\n\n"))
+        
+      }
+      
+      if("classificationSystem" %in% colnames(constraint)){
+        
+        cat(stringr::str_c("Classification System: ",
+                  constraint[i,]$classificationSystem,
+                  "\n\n"))
+        
+      }
+      
+      if("handlingDescription" %in% colnames(constraint)){
+        
+        cat(stringr::str_c("Handling Description: ",
+                  constraint[i,]$handlingDescription,
+                  "\n\n"))
+        
+      }
+      
+    }
+    
+  }
+  
+}
+
+```
+
+```{r associations, results='asis'}
+
+associatedResource <- resource %>%
+  dplyr::select(associatedResource) %>%
+  tidyr::unnest(associatedResource)
+
+if("associatedResource" %in% colnames(associatedResource)){
+  
+  cat("# Associated Resources\n\n")
+  
+  association <- associatedResource %>% 
+    tidyr::hoist(associatedResource, 
+          'resourceCitation',
+          'associationType',
+          'metadataCitation') %>%
+    tidyr::unnest(c(resourceCitation,
+             associationType))
+    
+  for(i in 1:nrow(association)){
+    
+    # Print association type: resource title
+    cat(stringr::str_c("## ",
+              gsub('([[:upper:]])',
+                   ' \\1',
+                   association$associationType[i]) %>%
+                stringr::str_to_sentence(),
+              ": ",
+              association$title[i],
+              "\n\n"))
+
+    # Print all dates
+    date <- association[i,] %>%
+      tidyr::unnest(date) %>%
+      tidyr::unnest(date) %>%
+      print_dates()
+
+    # Print all points of contact
+    cat("### Responsible Parties\n\n")
+    
+    pointOfContact <- association[i,] %>%
+      dplyr::select(responsibleParty) %>%
+      tidyr::unnest("responsibleParty",
+                keep_empty = TRUE) %>%
+      tidy_contacts() %>%
+      dplyr::mutate(role = gsub('([[:upper:]])', 
+                         ' \\1', 
+                         role) %>%
+             stringr::str_to_sentence())
+    
+    for(j in 1:nrow(pointOfContact)){
+      
+      cat(stringr::str_c(pointOfContact[j,]$role,
+                ": ",
+                pointOfContact[j,]$pointOfContact,
+                "\n\n"))
+      
+    }
+
+    # Print online resources, if they exist
+    if("onlineResource" %in% colnames(association)){
+
+      onlineResource <- association[i,] %>%
+        dplyr::select(onlineResource) %>%
+        tidyr::unnest(onlineResource)
+      
+      cat("### Online Resource\n\n")
+      
+      if("function" %in% colnames(onlineResource)){
+        
+        onlineResource <- dplyr::rename(onlineResource,
+                                 uriFunction = "function")
+
+      } 
+
+      for(j in 1:nrow(onlineResource)){
+        
+        if("name" %in% colnames(onlineResource)){
+          
+          if(!is.na(onlineResource[j,]$name)){
+            
+            name <- stringr::str_c("[", onlineResource[j,]$name, "]")
+            uri <- stringr::str_c("(", onlineResource[j,]$uri, ")")
+            
+          } else {
+            
+            uri <- onlineResource[j,]$uri
+            
+          }
+
+        } else {
+
+          uri <- onlineResource[j,]$uri
+
+        }
+
+        if("uriFunction" %in% colnames(onlineResource)){
+          
+          if(!is.na(onlineResource$uriFunction)){
+          
+            uriFunction <- stringr::str_c(": ", 
+                                 gsub('([[:upper:]])',
+                                      ' \\1',
+                                      onlineResource$uriFunction) %>%
+                                   stringr::str_to_lower())
+            
+            } else {
+            
+              uriFunction <- ""
+            
+            }
+          
+        } else {
+          
+          uriFunction <- ""
+          
+        }
+
+        if("description" %in% colnames(onlineResource)){
+
+          if(!is.na(onlineResource$description)){
+            
+            description <- onlineResource$description
+            
+          } else {
+            
+            description <- ""
+            
+          }
+
+        } else {
+
+          description <- ""
+
+        }
+
+        uri <- gsub("\\\\", "\\\\\\\\", uri)
+        cat(stringr::str_c(name, 
+                  uri, 
+                  uriFunction,
+                  "\n\n"))
+      }
+
+    }
+
+    # Print identifer, if it exists
+    if("identifier" %in% colnames(association)) {
+      
+      identifier <- dplyr::select(association[i,], identifier) %>%
+        tidyr::unnest(identifier) %>%
+        tidyr::unnest(identifier)
+      
+      cat("### Identifier\n\n")
+      
+      for(j in nrow(identifier)){
+        
+        id <- identifier[j,]$identifier
+        namespace <- stringr::str_c(" (",
+                           identifier[j,]$namespace,
+                           ")")
+        
+        cat(id,
+            namespace,
+            "\n\n")
+        
+      }
+      
+    }
+    
+    if(i < nrow(association)){
+      
+      cat("****\n\n")
+      
+    }
+  }
+}
+
+```
+
+```{r data-dictionary, results='asis'}
+
+dataDictionary <- resource %>%
+  dplyr::select(dataDictionary) %>%
+  tidyr::unnest(dataDictionary)
+
+if("dataDictionary" %in% colnames(dataDictionary)){
+  
+  # Print section title
+  cat("# Data Dictionary\n\n")
+  
+  # Pull out important sections
+  dictionary <- dataDictionary %>%
+    tidyr::hoist(dataDictionary,
+          "citation",
+          "responsibleParty",
+          "entity",
+          "domain",
+          "description")
+  
+  # Print the title
+  citation <- dictionary %>% 
+    dplyr::select(citation) %>%
+    tidyr::unnest(citation)
+  
+  cat(stringr::str_c("Data Dictionary Title: "),
+            citation$title,
+            "\n\n")
+  
+  # Print the dictionary contact
+  responsibleParty <- dictionary %>%
+    dplyr::select(responsibleParty) %>%
+    tidyr::unnest(responsibleParty) %>%
+    tidy_contacts() %>%
+    dplyr::mutate(role = gsub('([[:upper:]])', 
+                       ' \\1', 
+                       role) %>%
+             stringr::str_to_sentence())
+    
+  for(i in 1:nrow(responsibleParty)){
+      
+    cat(stringr::str_c("**",
+              responsibleParty[i,]$role,
+              ":** ",
+              responsibleParty[i,]$pointOfContact,
+              "\n\n"))
+      
+  }
+  
+  # Print the dictionary description
+  cat(stringr::str_c(dictionary$description,
+            "\n\n"))
+  
+  if(!is.na(dictionary$domain)){
+    
+    domain <- dictionary %>%
+      dplyr::select(domain) %>%
+      tidyr::unnest(domain) %>%
+      tidyr::unnest(domain) %>%
+      dplyr::rename(domainCode = "codeName",
+             domainName = "commonName")
+    
+   }
+  
+  # Print entity information
+  cat("## Entities\n\n")
+  
+  entity <- dictionary %>%
+    dplyr::select(entity) %>%
+    tidyr::unnest(entity) %>%
+    tidyr::unnest(entity)
+  
+  for(i in 1:nrow(entity)){
+    
+    if("commonName" %in% colnames(entity)){
+      
+      name <- stringr::str_c("**",
+                    entity[i,]$commonName,
+                    " (",
+                    entity[i,]$codeName,
+                    ")**\n\n")
+      
+    } else {
+      
+      name <- stringr::str_c("**",
+                      entity[i,]$codeName,
+                      "**\n\n")
+      
+    }
+      
+    cat(stringr::str_c("### Entity: ",
+              name,
+              "\n\n"))
+    
+    cat(stringr::str_c(entity[i,]$definition,
+              "\n\n"))
+    
+    atts <- entity[i,] %>%
+      dplyr::select(attribute) %>%
+      tidyr::unnest(attribute)
+    
+    if("domainId" %in% colnames(atts)){
+      atts <- dplyr::left_join(atts, domain, by = "domainId") %>%
+        dplyr::select(-c(domainId,
+                  domainItem,
+                  description))
+    }
+    
+    cat(stringr::str_c("#### Attributes\n\n"))
+    
+    # Create template for attributes
+    # %attName
+    # **Data Type:** %dataType, **Allow Null?** %allowNull
+    # %definition
+    # %**Domain:** domainName (domainCode) / domainCode
+    # %**Units:** units
+    # %**Missing Value Code:** missingValue
+    # %**Field Width:** fieldWidth
+    attTemplate <- stringr::str_c("%s\n\n",
+                         "**Data Type:** %s, **Allow Null?** %s\n\n",
+                         "%s\n\n",
+                         "%s\n\n",
+                         "%s\n\n",
+                         "%s\n\n",
+                         "%s\n\n")
+    
+    for(j in 1:nrow(atts)){
+      
+      # Get attribute name
+      # **commonName (codeName)**/ **codeName** 
+      if("commonName" %in% colnames(atts)){
+        
+        if(!is.na(atts[j,]$commonName)){
+          
+          attName <- stringr::str_c("**",
+                           atts[j,]$commonName,
+                           " (",
+                           atts[j,]$codeName,
+                           ")**\n\n")
+          
+        } else {
+          
+          attName <- stringr::str_c("**",
+                           atts[j,]$codeName,
+                           "**\n\n")
+          
+        }
+        
+      } else {
+        
+        attName <- stringr::str_c("**",
+                         atts[j,]$codeName,
+                         "**\n\n")
+        
+      }
+      
+      # Get data type
+      dataType <- atts[j,]$dataType
+      
+      # Get "Allow Null?"
+      allowNull <- atts[j,]$allowNull
+      
+      if(allowNull){
+        
+        allowNull <- "Yes"
+        
+      } else {
+        
+        allowNull <- "No"
+        
+      }
+      
+      # Get definition
+      definition <- atts[j,]$definition
+      
+      # Get domain
+      if("domainCode" %in% colnames(atts)){
+        
+        if(!is.na(atts[j,]$domainCode)){
+          
+          if("domainName" %in% colnames(atts)){
+            
+            if(!is.na(atts[j,]$domainName)){
+              
+              domainName <- stringr::str_c("**Defined Value List:** ",
+                                  atts[j,]$domainName,
+                                  " (",
+                                  atts[j,]$domainCode,
+                                  ")\n\n")
+              
+            } else {
+              
+              domainName <- stringr::str_c("**Defined Value List:** ",
+                                  atts[j,]$domainCode,
+                                  "\n\n")
+              
+            }
+            
+          } else {
+            
+            domainName <- stringr::str_c("**Defined Value List:** ",
+                                  atts[j,]$domainCode,
+                                  "\n\n")
+            
+          }
+          
+        } else {
+          
+          domainName <- ""
+          
+        }
+        
+      } else {
+        
+        domainName <- ""
+        
+      }
+      
+      # Get units
+      if("units" %in% colnames(atts)){
+        
+        if(!is.na(atts[j,]$units)){
+          
+          units <- stringr::str_c("**Units:** ",
+                         atts[j,]$units,
+                         "\n\n")
+          
+        } else {
+          
+          units <- ""
+          
+        }
+        
+      } else {
+        
+        units <- ""
+        
+      }
+      
+      # Get missing value code
+      if("missingValue" %in% colnames(atts)){
+        
+        if(!is.na(atts[j,]$missingValue)){
+          
+          missingValue <- stringr::str_c("**Missing Value:** ",
+                                atts[j,]$missingValue,
+                                "\n\n")
+          
+        } else {
+          
+          missingValue <- ""
+          
+        }
+        
+      } else {
+        
+        missingValue <- ""
+        
+      }
+      
+      # Get field width
+      if("fieldWidth" %in% colnames(atts)){
+        
+        if(!is.na(atts[j,]$fieldWidth)){
+          
+          fieldWidth <- stringr::str_c("**Field Width:** ",
+                              atts[j,]$fieldWidth,
+                              "\n\n")
+          
+        } else {
+          
+          fieldWidth <- ""
+          
+        }
+        
+      } else {
+        
+        fieldWidth <- ""
+        
+      }
+      
+      cat(sprintf(attTemplate,
+                  attName,
+                  dataType,
+                  allowNull,
+                  definition,
+                  domainName,
+                  units,
+                  missingValue,
+                  fieldWidth))
+      
+      if(j < nrow(atts)){
+      
+        cat("****\n\n")
+      
+      }
+      
+    }
+    
+  }
+  
+  if(!is.na(dictionary$domain)){
+    
+    cat("## Defined Value Lists\n\n")
+    
+    for(i in 1:nrow(domain)){
+      
+      if("domainName" %in% colnames(domain)){
+        
+        domainName <- stringr::str_c("**",
+                            domain[i,]$domainName,
+                            " (",
+                            domain[i,]$domainCode,
+                            ")**\n\n")
+      
+      } else {
+        
+        domainName <- stringr::str_c(domain[i,]$domainCode,
+                            "\n\n")
+        
+      }
+      
+      cat(stringr::str_c(domainName,
+                "\n\n",
+                domain[i,]$description,
+                "\n\n"))
+      
+      domainItems <- domain[i,] %>%
+        dplyr::select(domainItem) %>%
+        tidyr::unnest(domainItem)
+      
+      for(j in 1:nrow(domainItems)){
+        
+        cat(stringr::str_c(domainItems[j,]$name,
+                  " (",
+                  domainItems[j,]$value,
+                  "): ",
+                  domainItems[j,]$definition,
+                  "\n\n"))
+        
+      }
+      
+      if(i < nrow(domain)){
+        
+        cat("****\n\n")
+        
+      }
+      
+    }
+    
+  }
+  
+}
+```
