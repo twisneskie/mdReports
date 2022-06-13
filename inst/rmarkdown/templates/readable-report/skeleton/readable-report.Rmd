@@ -16,7 +16,8 @@ pkg_list <- c("knitr",
               "broom",
               "geojson",
               "geojsonio",
-              "ggmap")
+              "ggmap",
+              "mapproj")
 
 lapply(pkg_list, 
        library, 
@@ -77,8 +78,10 @@ print_dates <- function(dates){
   
   date <- dates %>% 
     dplyr::select(c("dateType", "date")) %>%
-    dplyr::mutate(dateType = gsub('([[:upper:]])', ' \\1', dateType) %>%
-             stringr::str_to_sentence()) %>%
+    dplyr::mutate(dateType = gsub('([[:upper:]])', 
+                                  ' \\1', 
+                                  dateType) %>%
+                    stringr::str_to_sentence()) %>%
     dplyr::mutate(dateType = stringr::str_c(dateType, " date")) %>%
     dplyr::mutate(date = as.Date(date))
     
@@ -98,6 +101,16 @@ knitr::opts_chunk$set(echo = FALSE)
 
 ```
 
+<!--
+Metadata status: %status
+
+%dateType date: %date
+
+## Contacts For Metadata
+
+**%role:** %pointOfContact
+-->
+
 ```{r metadata-information, results='asis'}
 
 metaInfo <- resource %>%
@@ -107,7 +120,9 @@ metaInfo <- resource %>%
                "metadataContact",
                "metadataDate")
 
-# Print metadata status, if available
+cat("# Metadata Details\n\n")
+
+#### Print metadata status ####
 if(!is.na(metaInfo$metadataStatus)) {
   
   cat(stringr::str_c("Metadata status: ",
@@ -116,14 +131,15 @@ if(!is.na(metaInfo$metadataStatus)) {
   
 } 
 
-# Print metadata dates
+#### Print metadata dates ####
+cat("## Metadata Dates\n\n")
 metaInfo %>% 
   dplyr::select(metadataDate) %>%
   tidyr::unnest(metadataDate) %>%
   tidyr::unnest(metadataDate) %>%
   print_dates()
 
-# Print metadata contacts
+#### Print metadata contacts ####
 cat("## Contacts For Metadata\n\n")
 
 pointOfContact <- metaInfo %>%
@@ -149,30 +165,33 @@ for(j in 1:nrow(pointOfContact)){
   
 ```
 
-<!-- Repository: Collection title-->
+<!-- 
+To add: Metadata repository information
 
-<!-- Basic resource information-->
+Repository: Collection title
+-->
 
 # Resource Details
 
 ```{r resource-details, results='asis'}
 
 resourceType <- resource %>%
+  select(resourceType) %>%
   tidyr::unnest(resourceType) %>%
   tidyr::unnest(resourceType)
 
-# Separate words within resource type and put in sentence case
+#### Print resource type, name, and status ####
 type <- gsub('([[:upper:]])', 
              ' \\1', 
              resourceType$type) %>% 
   stringr::str_to_sentence()
 
-# Put resource name in parentheses, if it exists
-if(!is.na(resourceType$name)){
+# Optional: add resource name
+if("name" %in% colnames(resourceType)){
   
-  resourceName <- stringr::str_c(" (", 
-                        resourceType$name, 
-                        ")")
+  resourceName <- stringr::str_c(" (",
+                                 resourceType$name,
+                                 ")")
   
 } else {
   
@@ -180,7 +199,7 @@ if(!is.na(resourceType$name)){
   
 }
 
-# Resource status should be all lowercase 
+# If there is more than one status, put them in a comma-delimited list
 resourceStatus <- resource %>%
   dplyr::select(status) %>%
   tidyr::unnest(status)
@@ -189,25 +208,25 @@ status <- ""
 
 for(i in 1:nrow(resourceStatus)){
   
-  status <- stringr::str_c(status, 
-                  stringr::str_to_lower(resourceStatus[i,]$status))
+  status <- stringr::str_c(status,
+                           stringr::str_to_lower(resourceStatus[i,]$status))
   
   if(i < nrow(resourceStatus)){
     
     status <- stringr::str_c(status,
-                    ", ")
+                             ", ")
     
   }
 }
 
 # Print type (resourceName): status
 cat(stringr::str_c(type,
-          resourceName,
-          ": ",
-          status,
-          "\n\n"))
+                   resourceName,
+                   ": ",
+                   status,
+                   "\n\n"))
 
-# Print time period
+#### Print time period ####
 timePeriod <- resource %>%
   dplyr::select(timePeriod) %>%
   tidyr::unnest(timePeriod) %>%
@@ -219,44 +238,46 @@ if("endDateTime" %in% colnames(timePeriod)){
                               endDate = as.Date(timePeriod$endDateTime))
   
   cat(stringr::str_c("Time Period: ",
-          timePeriod$startDate,
-          " -- ",
-          timePeriod$endDate,
-          "\n\n"))
+                     timePeriod$startDate,
+                     " -- ",
+                     timePeriod$endDate,
+                     "\n\n"))
   
 } else {
   
   cat(stringr::str_c("Time Period: ",
-          timePeriod$startDate,
-          " -- ",
-          "\n\n"))
+                     timePeriod$startDate,
+                     " -- ",
+                     "\n\n"))
   
 }
 
 if("description" %in% colnames(timePeriod)){
   
   cat(stringr::str_c(timePeriod$description,
-            "\n\n"))
+                     "\n\n"))
   
 }
 
-# If resource maintenance exists, extract the maintenance frequency
+#### Print resource maintenance ####
 maintenance <- dplyr::select(resource, resourceMaintenance)
 
-if(!is.na(maintenance$resourceMaintenance)){
+if(maintenance$resourceMaintenance != "NULL"){
   
   maintenance <- maintenance %>%
     tidyr::unnest(resourceMaintenance) %>%
     tidyr::unnest(resourceMaintenance) %>%
-    dplyr::mutate(frequency = stringr::str_to_lower(gsub('([[:upper:]])', 
-                                         ' \\1', 
-                                         frequency)))
+    dplyr::mutate(frequency = stringr::str_to_lower(gsub('([[:upper:]])',
+                                                         ' \\1',
+                                                         frequency)))
   
-  cat(stringr::str_c("Resource maintainance: ",
-            maintenance$frequency,
-            "\n\n"))
+  cat(stringr::str_c("Resource maintenance: ",
+                     maintenance$frequency,
+                     "\n\n"))
   
 }
+
+#### Print resource descriptions ####
 
 # If there are more fields in the description section than just abstract,
 # create a description header
@@ -268,28 +289,49 @@ if(!is.na(resource$shortAbstract) | !is.na(resource$purpose)){
 
 # Print resource descriptors
 cat(stringr::str_c("**Abstract:** ",
-          resource$abstract,
-          "\n\n"))
+                   resource$abstract,
+                   "\n\n"))
 
 if(!is.na(resource$shortAbstract)){
   
   cat(stringr::str_c("**Short Abstract:** ",
-            resource$shortAbstract,
-            "\n\n"))
+                     resource$shortAbstract,
+                     "\n\n"))
   
 }
 
 if(!is.na(resource$purpose)){
   
   cat(stringr::str_c("**Purpose:** ",
-            resource$purpose,
-            "\n\n"))
+                     resource$purpose,
+                     "\n\n"))
   
 }
 
 ```
 
+<!--
+%type (%resourceName): %status
+
+Time Period: %startDate -- %endDate
+%timePeriodDescription
+
+Resource maintenance: %frequency
+
+## Description
+
+**Abstract:** %abstract
+
+**Short Abstract:** %shortAbstract
+
+**Purpose:** %purpose
+-->
+
 ## Resource Points of Contact
+
+<!-- 
+**Role:** Point of Contact (email)
+-->
 
 ```{r resource-contacts, results='asis'}
 
@@ -298,18 +340,19 @@ pointOfContact <- resource %>%
   tidyr::unnest("pointOfContact",
                 keep_empty = TRUE) %>%
   tidy_contacts() %>%
-  dplyr::mutate(role = gsub('([[:upper:]])', 
-                     ' \\1', 
-                     role) %>%
-           stringr::str_to_sentence())
+  dplyr::mutate(role = gsub('([[:upper:]])',
+                            ' \\1',
+                            role) %>%
+                  stringr::str_to_sentence())
 
+# Output formatted text for each contact role
 for(j in 1:nrow(pointOfContact)){
       
       cat(stringr::str_c("**",
-                pointOfContact[j,]$role,
-                ":** ",
-                pointOfContact[j,]$pointOfContact,
-                "\n\n"))
+                         pointOfContact[j,]$role,
+                         ":** ",
+                         pointOfContact[j,]$pointOfContact,
+                         "\n\n"))
       
 }
 
@@ -320,12 +363,12 @@ for(j in 1:nrow(pointOfContact)){
 ```{r citation-information, results='asis'}
 citation <- resource %>% 
   dplyr::select(title, citation) %>%
-  tidyr::hoist(citation, 
-        "alternateTitle",
-        "date",
-        "responsibleParty",
-        "onlineResource",
-        "identifier")
+  tidyr::hoist(citation,
+               "alternateTitle",
+               "date",
+               "responsibleParty",
+               "onlineResource",
+               "identifier")
 
 alternateTitle <- citation %>%
   dplyr::select("alternateTitle") %>%
@@ -342,25 +385,25 @@ if(!is.na(citation$alternateTitle)){
   for(i in nrow(alternateTitle)){
     
     titleList <- stringr::str_c(titleList,
-                       stringr::str_trim(alternateTitle[i,]))
+                                stringr::str_trim(alternateTitle[i,]))
   
     if(i < nrow(alternateTitle)){
     
       titleList <- stringr::str_c(titleList,
-                         ", ")
+                                  ", ")
     
     }
   }
   
   cat(stringr::str_c(citation$title,
-            " (", 
-            titleList, 
-            ")\n\n"))
+                     " (",
+                     titleList,
+                     ")\n\n"))
   
 } else {
   
   cat(stringr::str_c(citation$title,
-            "\n\n"))
+                     "\n\n"))
   
 }
 
@@ -379,17 +422,17 @@ pointOfContact <- citation %>%
   tidyr::unnest("responsibleParty",
                 keep_empty = TRUE) %>%
   tidy_contacts() %>%
-  dplyr::mutate(role = gsub('([[:upper:]])', 
-                     ' \\1', 
-                     role) %>%
+  dplyr::mutate(role = gsub('([[:upper:]])',
+                            ' \\1',
+                            role) %>%
            stringr::str_to_sentence())
 
 for(j in 1:nrow(pointOfContact)){
       
       cat(stringr::str_c(pointOfContact[j,]$role,
-                ": ",
-                pointOfContact[j,]$pointOfContact,
-                "\n\n"))
+                         ": ",
+                         pointOfContact[j,]$pointOfContact,
+                         "\n\n"))
       
 }
 
@@ -421,8 +464,11 @@ if(!is.na(citation$onlineResource)){
   # Get URI function, if applicable
   if("function" %in% colnames(onlineResource)){
     
-    onlineResource <- dplyr::rename(onlineResource, uriFunction = "function") %>% 
-      dplyr::mutate(uriFunction = gsub('([[:upper:]])', ' \\1', uriFunction) %>%
+    onlineResource <- dplyr::rename(onlineResource, 
+                                    uriFunction = "function") %>% 
+      dplyr::mutate(uriFunction = gsub('([[:upper:]])', 
+                                       ' \\1', 
+                                       uriFunction) %>%
            stringr::str_to_lower())
     
     uriFunction <- stringr::str_c(": ", onlineResource$uriFunction)
@@ -437,10 +483,10 @@ if(!is.na(citation$onlineResource)){
   }
   
   # Print [Name](URI): function
-  cat(stringr::str_c(name, 
-            uri, 
-            uriFunction,
-            "\n\n"))
+  cat(stringr::str_c(name,
+                     uri,
+                     uriFunction,
+                     "\n\n"))
 
 }
 
@@ -453,16 +499,16 @@ if(!is.na(identifier$identifier)) {
   identifier <- tidyr::unnest(identifier, identifier)
     
   cat(stringr::str_c("### Identifier\n\n",
-            identifier$identifier,
-            " (",
-            identifier$namespace,
-            ")\n\n"))
+                     identifier$identifier,
+                     " (",
+                     identifier$namespace,
+                     ")\n\n"))
   
 }
   
 ```
 
-# Keywords
+# Keyword Vocabularies 
 
 ```{r keywords, results='asis'}
 
@@ -479,14 +525,104 @@ keywordTemplate <- "## %s\n\n%s"
 for(i in 1:nrow(keywords)){
   
   keyTitle <- keywords[i,]$thesaurus$title
-  wordList <- tidyr::unnest_wider(keywords[i,], keyword) %>%
-    dplyr::select(keyword) %>%
+  
+  wordList <- keywords[i,] %>%
+    select(keyword) %>%
+    unnest(keyword)
+  
+  thesauri <- c("ISO 19115 Topic Category",
+                "Global Change Master Directory (GCMD) Science Keywords",
+                "Global Change Master Directory (GCMD) Platforms",
+                "Global Change Master Directory (GCMD) Instruments")
+  
+  lcc <- c("Project Category - Landscape Conservation Cooperatives",
+           "Deliverable Types - Landscape Conservation Cooperatives",
+           "End User Types - Landscape Conservation Cooperatives")
+  
+  if(keyTitle == thesauri[1]){
+    
+    uri <- str_c("https://apps.usgs.gov/thesaurus/",
+                 "term-simple.php?thcode=15&code=")
+    
+  }
+  
+  if(keyTitle == thesauri[2]){
+    
+    uri <- str_c("https://gcmd.earthdata.nasa.gov/",
+                 "KeywordViewer/scheme/sciencekeywords/")
+    
+  }
+  
+  if(keyTitle == thesauri[3]){
+    
+    uri <- str_c("https://gcmd.earthdata.nasa.gov/",
+                 "KeywordViewer/scheme/platforms/")
+    
+  }
+  
+  if(keyTitle == thesauri[4]){
+    
+    uri <- str_c("https://gcmd.earthdata.nasa.gov/",
+                 "KeywordViewer/scheme/instruments/")
+    
+  }
+  
+  if(keyTitle == lcc[1]){
+    
+    uri <- str_c("https://www.sciencebase.gov/",
+                 "vocab/52dee7c5e4b0dee2a6cd6b18/term/")
+      
+  }
+  
+  if(keyTitle == lcc[2]){
+    
+    uri <- str_c("https://www.sciencebase.gov/",
+                 "vocab/54760ef9e4b0f62cb5dc41a0/term/")
+    
+  }
+  
+  if(keyTitle == lcc[3]){
+    
+    uri <- str_c("https://www.sciencebase.gov/",
+                 "vocab/Deliverable/term/")
+    
+  }
+  
+  if(keyTitle %in% thesauri){
+    
+    wordList <- wordList %>%
+      mutate(keyword = str_c("[",
+                             stringr::str_to_title(keyword),
+                             "](",
+                             uri,
+                             identifier,
+                             ")"))
+    
+  } 
+  
+  if(keyTitle %in% lcc){
+    
+    wordList <- wordList %>%
+      mutate(endPath = gsub("[[:blank:]]", "%20", keyword)) %>%
+      mutate(endPath = gsub("/", "%2F", endPath)) %>%
+      mutate(keyword = str_c("[",
+                             stringr::str_to_title(keyword),
+                             "](",
+                             uri,
+                             endPath,
+                             ")"))
+    
+  }
+  
+  wordList <- wordList %>%
+    select(keyword) %>%
+    nest(data = keyword) %>%
+    unnest_wider(data) %>%
     tidyr::unnest_wider(keyword, names_sep = ".") %>%
     tidyr::unite("keyword",
-               tidyr::contains("."),
-               sep = "\n\n",
-               na.rm = TRUE) %>%
-    stringr::str_to_title() %>%
+                 tidyr::contains("."),
+                 sep = "\n\n",
+                 na.rm = TRUE) %>%
     stringr::str_c("\n\n")
   
   cat(sprintf(keywordTemplate,
@@ -507,7 +643,7 @@ extent <- resource %>%
   tidyr::unnest(extent)
 
 # If the extent section exists...
-if(!is.na(extent$extent)){
+if("extent" %in% colnames(extent)){
   
   cat("# Extent\n\n")
 
@@ -524,41 +660,84 @@ if(!is.na(extent$extent)){
   for(i in 1:nrow(extent)) {
 
     # Map bounding boxes, if they exist
-    if(!is.na(extent$westLongitude[i])) {
+    if(!is.na(extent[i,]$westLongitude)) {
       
-      location <- c((extent$westLongitude[i]),
-                    (extent$southLatitude[i]),
-                    (extent$eastLongitude[i]),
-                    (extent$northLatitude[i]))
+      bbox <- c(extent[i,]$westLongitude,
+                extent[i,]$southLatitude,
+                extent[i,]$eastLongitude,
+                extent[i,]$northLatitude)
       
       boxMap <- ggplot2::annotate('rect',
-                         xmin = extent$westLongitude[i],
-                         xmax = extent$eastLongitude[i],
-                         ymin = extent$southLatitude[i],
-                         ymax = extent$northLatitude[i],
-                         color = "red",
-                         fill = "transparent")
+                                  xmin = bbox[1],
+                                  xmax = bbox[3],
+                                  ymin = bbox[2],
+                                  ymax = bbox[4],
+                                  color = "red",
+                                  fill = "transparent")
+      
+      # Make the map view slightly larger than the bounding box
+      location <- c((((bbox[1] + 359) * 0.98)-359),
+                    (((bbox[2] + 359) * 0.998)-359),
+                    (((bbox[3] + 359) * 1.02)-359),
+                    (((bbox[4] + 359) * 1.002)-359))
       
       map <- ggmap::get_map(location = location,
-                   source = "stamen",
-                   maptype = "terrain",
-                   crop = FALSE)
+                            source = "osm",
+                            crop = FALSE)
       
-      mapLabels <- ggplot2::labs(x = "",
-                        y = "")
+      mapLabels <- ggplot2::labs(x = "long",
+                                 y = "lat")
       
+      view <- ggplot2::coord_map(xlim = c(location[1],
+                                          location[3]),
+                                 ylim = c(location[2],
+                                          location[4]))
+
+      # Restrict view where the international date line is crossed
+      if(location[1] < -180 & location[3] < 0){
+
+        view <- ggplot2::coord_map(xlim = c(-180,
+                                            location[3]),
+                                   ylim = c(location[2],
+                                            location[4]))
+
+        caption <- str_c("Note: Features that cross the ",
+                         "International Date Line have been omitted.")
+
+        mapLabels <- ggplot2::labs(x = "long",
+                                   y = "lat",
+                                   caption = wrapper(caption, 40))
+
+      }
+
+      if(location[1] > 0 & location[3] > 180){
+
+        view <- ggplot2::coord_map(xlim = c(location[1],
+                                            179.9),
+                                   ylim = c(location[2],
+                                            location[4]))
+
+        caption <- str_c("Note: Features that cross the ",
+                         "International Date Line have been omitted.")
+
+        mapLabels <- ggplot2::labs(x = "long",
+                                   y = "lat",
+                                   caption = wrapper(caption, 50))
+
+      }
+
     }
 
     # Map features, if they exist
-    if(!is.na(extent$geographicElement[i])) {
+    if(!is.na(extent[i,]$geographicElement)) {
 
       # Convert features so they can be plotted with ggplot
-      geoJSON <- jsonlite::toJSON(extent$geographicElement[i]) %>%
+      geoJSON <- jsonlite::toJSON(extent[i,]$geographicElement) %>%
         stringr::str_sub(2, -2)
 
       geoJSON <- stringr::str_c('{"type": "FeatureCollection", "features": ',
-                       geoJSON,
-                       '}') %>%
+                                geoJSON,
+                                '}') %>%
         geojson::as.geojson() %>%
         # If a geoJSON has a z axis, it won't convert to sp directly
         # Read to sf and remove z axis if necessary
@@ -569,22 +748,65 @@ if(!is.na(extent$extent)){
         geojsonio::geojson_sp() %>%
         broom::tidy() %>%
         dplyr::rename(lon = "long")
+
+      bbox <- ggmap::make_bbox(geoJSON$lon, geoJSON$lat)
       
-      location <- ggmap::make_bbox(geoJSON$lon, geoJSON$lat)
+      location <- c((((bbox[1] + 359) * 0.98)-359),
+                    (((bbox[2] + 359) * 0.998)-359),
+                    (((bbox[3] + 359) * 1.02)-359),
+                    (((bbox[4] + 359) * 1.002)-359))
+
+      mapLabels <- ggplot2::labs(x = "long",
+                                 y = "lat")
       
-      featuresMap <- ggplot2::geom_polygon(data = geoJSON, 
-                                  ggplot2::aes(group = group), 
-                                  alpha = 0.5,
-                                  color = "black") 
+      featuresMap <- ggplot2::geom_polygon(data = geoJSON,
+                                           ggplot2::aes(group = group),
+                                           alpha = 0.5,
+                                           color = "black") 
       
       map <- ggmap::get_map(location = location,
-                   source = "stamen",
-                   maptype = "terrain",
-                   crop = FALSE)
+                            source = "osm",
+                            crop = FALSE)
       
-      mapLabels <- ggplot2::labs(x = "",
-                        y = "")
-      
+      view <- ggplot2::coord_map(xlim = c(location[1],
+                                          location[3]),
+                                 ylim = c(location[2],
+                                          location[4]))
+
+      # Fix maps where the international date line is crossed
+      if(location[1] < -180 & location[3] < 0){
+
+        caption <- str_c("Note: Features that cross the ",
+                         "International Date Line have been omitted.")
+
+        mapLabels <- ggplot2::labs(x = "long",
+                                   y = "lat",
+                                   caption = wrapper(caption, 40))
+        
+        view <- ggplot2::coord_map(xlim = c(-180,
+                                            location[3]),
+                                   ylim = c(location[2],
+                                            location[4]))
+          
+
+      }
+
+      if(location[1] > 0 & location[3] > 180){
+
+        caption <- str_c("Note: Features that cross the ",
+                         "International Date Line have been omitted.")
+
+        mapLabels <- ggplot2::labs(x = "long",
+                                   y = "lat",
+                                   caption = wrapper(caption, 50))
+        
+        view <- ggplot2::coord_map(xlim = c(location[1],
+                                            179.9),
+                                   ylim = c(location[2],
+                                            location[4]))
+
+      }
+
     }
     
     # Record the extent description
@@ -595,23 +817,36 @@ if(!is.na(extent$extent)){
       geographicDescription <- ""
 
     }
+    
+    cat(str_c(geographicDescription,
+              "\n\n"))
 
     # If bounding box and/or features are plotted, description (if it exists)
-    if(exists("boundingBox") | exists("geoJSON")){
+    if(!is.na(extent[i,]$westLongitude) & 
+       !is.na(extent[i,]$geographicElement)){
       
+      print(ggmap(map) +
+              boxMap + 
+              featuresMap + 
+              mapLabels + 
+              view)
+
+    } else if(!is.na(extent[i,]$westLongitude)){
       
-      mapLabels <- ggplot2::labs(caption = wrapper(geographicDescription, 
-                                                   width = 40),
-                        x = "",
-                        y = "")
+      print(ggmap(map) +
+              boxMap +  
+              mapLabels +
+              view)
 
-      geographicDescription <- ""
-
-      print(ggmap(map) + boxMap + featuresMap + mapLabels)
-
+    } else if(!is.na(extent[i,]$geographicElement)){
+      
+      print(ggmap(map) +
+              featuresMap +  
+              mapLabels +
+              view)
+      
     }
   }
-
 }
 
 ```
@@ -633,15 +868,15 @@ if("resourceLineage" %in% colnames(lineage)){
     if(nrow(lineage) > 1){
       
       cat(stringr::str_c("## Lineage ",
-                i,
-                "\n\n"))
+                         i,
+                         "\n\n"))
       
     }
     
     if("statement" %in% colnames(lineage)){
       
       cat(stringr::str_c(lineage[i,]$statement,
-              "\n\n"))
+                         "\n\n"))
       
     }
     
@@ -653,17 +888,14 @@ if("resourceLineage" %in% colnames(lineage)){
       for(j in 1:nrow(processStep)){
         
         cat(stringr::str_c("**Process Step ",
-                  j,
-                  ":** ",
-                  processStep[j,]$description,
-                  "\n\n"))
+                           j,
+                           ":** ",
+                           processStep[j,]$description,
+                           "\n\n"))
         
       }
-      
     }
-    
   }
-  
 }
 ```
 
@@ -696,45 +928,70 @@ if(!is.na(taxonomy$taxonomy)){
     tax <- taxonomy[i,]
     
     cat(stringr::str_c("## ",
-              tax$title,
-              "\n\n"))
+                       tax$title,
+                       "\n\n"))
     
     tax <- dplyr::select(tax,
-                  taxonomicSystemId,
-                  taxonomicLevel,
-                  taxonomicName,
-                  subClassification)
-  
-    tax[[tax$taxonomicLevel]] <- stringr::str_c("*",
-                                       tax$taxonomicName,
-                                       "* (",
-                                       tax$taxonomicSystemId,
-                                       ")")
-  
-    while("subClassification" %in% colnames(tax)){
+                         taxonomicSystemId,
+                         taxonomicLevel,
+                         taxonomicName,
+                         isITIS,
+                         subClassification)
     
-      tax <- tax %>% 
-        dplyr::select(-dplyr::any_of(c('taxonomicName',
-                         'taxonomicSystemId',
-                         'taxonomicLevel',
-                         'isITIS',
-                         'commonName'))) %>%
-        tidyr::unnest(subClassification,
-               keep_empty = TRUE)
+    if(tax$isITIS == TRUE){
       
-      for(j in 1:nrow(tax)){
+      taxString <- stringr::str_c("*",
+                                  tax$taxonomicName,
+                                  "* ([",
+                                  tax$taxonomicSystemId,
+                                  "](",
+                                  "https://",
+                                  "www.itis.gov/servlet/",
+                                  "SingleRpt/SingleRpt?search_topic=",
+                                  "TSN&search_value=",
+                                  tax$taxonomicSystemId,
+                                  "#null",
+                                  "))")
       
-        if(!is.na(tax[j,]$taxonomicLevel)){
+      } else {
         
-          if("commonName" %in% colnames(tax)){
+        taxString <- stringr::str_c("*",
+                                    tax$taxonomicName,
+                                    "* (",
+                                    tax$taxonomicSystemId,
+                                    ")")
+        
+      }
+    
+    tax[[tax$taxonomicLevel]] <- taxString
+    
+    if(tax[i,]$subClassification != "NULL"){
+      
+      while("subClassification" %in% colnames(tax)){
+    
+        tax <- tax %>% 
+          dplyr::select(-dplyr::any_of(c('taxonomicName',
+                                         'taxonomicSystemId',
+                                         'taxonomicLevel',
+                                         'isITIS',
+                                         'commonName'))) %>%
+          tidyr::unnest(subClassification,
+                        keep_empty = TRUE)
+      
+        for(j in 1:nrow(tax)){
+      
+          if(!is.na(tax[j,]$taxonomicLevel)){
+        
+            if("commonName" %in% colnames(tax)){
           
-            if(tax[j,]$commonName != "NULL"){
+              if(tax[j,]$commonName != "NULL"){
+              
               commonName <- purrr::flatten(tax[j,]$commonName) %>%
                 paste(collapse = "/")
             
               commonName <- stringr::str_c(": **",
-                                  commonName,
-                                  "**")
+                                           commonName,
+                                           "**")
             
             } else {
             
@@ -747,27 +1004,49 @@ if(!is.na(taxonomy$taxonomy)){
             commonName <- ""
           
           }
+          
+            if(tax[j,]$isITIS == TRUE){
+              
+              taxString <- stringr::str_c("*",
+                                        tax[j,]$taxonomicName,
+                                        "* ([",
+                                        tax[j,]$taxonomicSystemId,
+                                        "](",
+                                        "https://",
+                                        "www.itis.gov/servlet/",
+                                        "SingleRpt/SingleRpt?search_topic=",
+                                        "TSN&search_value=",
+                                        tax[j,]$taxonomicSystemId,
+                                        "#null",
+                                        "))",
+                                        commonName)
+              
+            } else {
+              
+              taxString <- stringr::str_c("*",
+                                        tax[j,]$taxonomicName,
+                                        "* (",
+                                        tax[j,]$taxonomicSystemId,
+                                        ")",
+                                        commonName)
+              
+            }
         
-          tax[j, tax[j,]$taxonomicLevel] <- stringr::str_c("*",
-                                                  tax[j,]$taxonomicName,
-                                                  "* (",
-                                                  tax[j,]$taxonomicSystemId,
-                                                  ")",
-                                                  commonName)
+          tax[j, tax[j,]$taxonomicLevel] <- taxString
         
           tax <- tax %>% dplyr::relocate(tax[j,]$taxonomicLevel,
-                                  .after = last_col())
+                                         .after = last_col())
         
+          }
         }
       }
-    }
-  
-    tax <- tax %>% 
-        dplyr::select(-dplyr::any_of(c('taxonomicName',
-                         'taxonomicSystemId',
-                         'taxonomicLevel',
-                         'isITIS',
-                         'commonName')))
+      
+          tax <- tax %>% 
+      dplyr::select(-dplyr::any_of(c('taxonomicName',
+                                     'taxonomicSystemId',
+                                     'taxonomicLevel',
+                                     'isITIS',
+                                     'commonName')))
   
     for(i in 1:nrow(tax)){
       
@@ -782,11 +1061,11 @@ if(!is.na(taxonomy$taxonomy)){
               spaces <- strrep("&#10;", j)
         
               cat(stringr::str_c(spaces,
-                        "&#187;",
-                        colnames(tax)[j],
-                        ": ",
-                        tax[i,j],
-                        "\n\n"))
+                                 "&#187;",
+                                 colnames(tax)[j],
+                                 ": ",
+                                 tax[i,j],
+                                 "\n\n"))
           
             }
         
@@ -795,12 +1074,13 @@ if(!is.na(taxonomy$taxonomy)){
             spaces <- strrep("&#10;", j)
         
             cat(stringr::str_c(spaces,
-                      "&#187;",
-                      colnames(tax)[j],
-                      ": ",
-                      tax[i,j],
-                      "\n\n"))
+                               "&#187;",
+                               colnames(tax)[j],
+                               ": ",
+                               tax[i,j],
+                               "\n\n"))
         
+            }
           }
         }
       }
@@ -1024,7 +1304,7 @@ constraint <- resource %>%
   dplyr::select(constraint) %>%
   tidyr::unnest(constraint)
 
-if(!is.na(constraint$constraint)){
+if("constraint" %in% colnames(constraint)){
   
   cat("# Constraints\n\n")
   
@@ -1351,13 +1631,13 @@ if("dataDictionary" %in% colnames(dataDictionary)){
       dplyr::select(domain) %>%
       tidyr::unnest(domain) %>%
       tidyr::unnest(domain) %>%
-      dplyr::rename(domainCode = "codeName",
-             domainName = "commonName")
+      dplyr::rename(dplyr::any_of(c(domainCode = "codeName",
+                                    domainName = "commonName")))
     
    }
   
   # Print entity information
-  cat("## Entities\n\n")
+  cat("## Tables\n\n")
   
   entity <- dictionary %>%
     dplyr::select(entity) %>%
@@ -1368,21 +1648,19 @@ if("dataDictionary" %in% colnames(dataDictionary)){
     
     if("commonName" %in% colnames(entity)){
       
-      name <- stringr::str_c("**",
-                    entity[i,]$commonName,
-                    " (",
-                    entity[i,]$codeName,
-                    ")**\n\n")
+      name <- stringr::str_c(entity[i,]$commonName,
+                             " (Code name: ",
+                             entity[i,]$codeName,
+                             ")\n\n")
       
     } else {
       
-      name <- stringr::str_c("**",
-                      entity[i,]$codeName,
-                      "**\n\n")
+      name <- stringr::str_c(entity[i,]$codeName,
+                             "\n\n")
       
     }
       
-    cat(stringr::str_c("### Entity: ",
+    cat(stringr::str_c("### Table: ",
               name,
               "\n\n"))
     
@@ -1400,7 +1678,7 @@ if("dataDictionary" %in% colnames(dataDictionary)){
                   description))
     }
     
-    cat(stringr::str_c("#### Attributes\n\n"))
+    cat(stringr::str_c("#### Fields\n\n"))
     
     # Create template for attributes
     # %attName
@@ -1410,13 +1688,17 @@ if("dataDictionary" %in% colnames(dataDictionary)){
     # %**Units:** units
     # %**Missing Value Code:** missingValue
     # %**Field Width:** fieldWidth
-    attTemplate <- stringr::str_c("%s\n\n",
-                         "**Data Type:** %s, **Allow Null?** %s\n\n",
-                         "%s\n\n",
-                         "%s\n\n",
-                         "%s\n\n",
-                         "%s\n\n",
-                         "%s\n\n")
+    attTemplate <- stringr::str_c('::: {custom-style="List Bullet"}\n\n',
+                                  "%s%s\n\n",
+                                  ":::\n\n",
+                                  '::: {custom-style="List Bullet 2"}\n\n',
+                                  " **Data Type:** %s,",
+                                  " **Allow Null?** %s\n\n",
+                                  "%s\n\n",
+                                  "%s\n\n",
+                                  "%s\n\n",
+                                  "%s\n\n",
+                                  ":::\n\n")
     
     for(j in 1:nrow(atts)){
       
@@ -1427,24 +1709,24 @@ if("dataDictionary" %in% colnames(dataDictionary)){
         if(!is.na(atts[j,]$commonName)){
           
           attName <- stringr::str_c("**",
-                           atts[j,]$commonName,
-                           " (",
-                           atts[j,]$codeName,
-                           ")**\n\n")
+                                    atts[j,]$commonName,
+                                    " (Code name: ",
+                                    atts[j,]$codeName,
+                                    ")**\n\n")
           
         } else {
           
           attName <- stringr::str_c("**",
-                           atts[j,]$codeName,
-                           "**\n\n")
+                                    atts[j,]$codeName,
+                                    "**: ")
           
         }
         
       } else {
         
         attName <- stringr::str_c("**",
-                         atts[j,]$codeName,
-                         "**\n\n")
+                                  atts[j,]$codeName,
+                                  "**: ")
         
       }
       
@@ -1575,19 +1857,19 @@ if("dataDictionary" %in% colnames(dataDictionary)){
       
       cat(sprintf(attTemplate,
                   attName,
+                  definition,
                   dataType,
                   allowNull,
-                  definition,
                   domainName,
                   units,
                   missingValue,
                   fieldWidth))
       
-      if(j < nrow(atts)){
+    }
+    
+    if(i < nrow(entity)){
       
-        cat("****\n\n")
-      
-      }
+      cat("****\n\n")
       
     }
     
@@ -1602,15 +1884,15 @@ if("dataDictionary" %in% colnames(dataDictionary)){
       if("domainName" %in% colnames(domain)){
         
         domainName <- stringr::str_c("**",
-                            domain[i,]$domainName,
-                            " (",
-                            domain[i,]$domainCode,
-                            ")**\n\n")
+                                     domain[i,]$domainName,
+                                     " (Code name: ",
+                                     domain[i,]$domainCode,
+                                     ")**\n\n")
       
       } else {
         
         domainName <- stringr::str_c(domain[i,]$domainCode,
-                            "\n\n")
+                                     "\n\n")
         
       }
       
@@ -1625,12 +1907,13 @@ if("dataDictionary" %in% colnames(dataDictionary)){
       
       for(j in 1:nrow(domainItems)){
         
-        cat(stringr::str_c(domainItems[j,]$name,
-                  " (",
-                  domainItems[j,]$value,
-                  "): ",
-                  domainItems[j,]$definition,
-                  "\n\n"))
+        cat(stringr::str_c("&#10;&#10;&#10;&#10;List Name: ",
+                           domainItems[j,]$name,
+                           " (Value: ",
+                           domainItems[j,]$value,
+                           "): ",
+                           domainItems[j,]$definition,
+                           "\n\n"))
         
       }
       
