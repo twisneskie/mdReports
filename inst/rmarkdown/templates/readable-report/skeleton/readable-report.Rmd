@@ -577,14 +577,14 @@ for(i in 1:nrow(keywords)){
   if(keyTitle == lcc[2]){
     
     uri <- str_c("https://www.sciencebase.gov/",
-                 "vocab/54760ef9e4b0f62cb5dc41a0/term/")
+                 "vocab/Deliverable/term/")
     
   }
   
   if(keyTitle == lcc[3]){
     
     uri <- str_c("https://www.sciencebase.gov/",
-                 "vocab/Deliverable/term/")
+                 "vocab/54760ef9e4b0f62cb5dc41a0/term/")
     
   }
   
@@ -632,8 +632,6 @@ for(i in 1:nrow(keywords)){
 }
 
 ```
-
-<!-- Can I put really zoomed in maps as an inset? -->
 
 ```{r extent-maps, message=FALSE, warning=FALSE, results='asis'}
 
@@ -1891,8 +1889,9 @@ if("dataDictionary" %in% colnames(dataDictionary)){
       
       } else {
         
-        domainName <- stringr::str_c(domain[i,]$domainCode,
-                                     "\n\n")
+        domainName <- stringr::str_c("**",
+                                     domain[i,]$domainCode,
+                                     "**\n\n")
         
       }
       

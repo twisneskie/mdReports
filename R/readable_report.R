@@ -1,6 +1,6 @@
 readable_report <- function(resource,
                             output_name = "Metadata_Report",
-                            output_dir = "C:\\Users\\twisneskie\\Documents"){
+                            output_dir){
 
   directory <- "inst\\rmarkdown\\templates\\readable-report\\skeleton"
 
