@@ -14,7 +14,7 @@
 #' @export
 
 import_mdJSON <- function(program = "fes",
-                          path = "\\\\ifw7ro-file.fws.doi.net\\datamgt") {
+                          path) {
 
   #### STEP 1: IMPORT mdJSON RECORDS ####
   # Create a path to the specified program directory, if necessary
