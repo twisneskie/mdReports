@@ -4,7 +4,6 @@
 # mdReports
 
 <!-- badges: start -->
-
 <!-- badges: end -->
 
 The goal of mdReports is to offer tools to import, search, and create
@@ -18,8 +17,14 @@ Integration Working Group, which can be exported as-is or translated
 into a variety of metadata standards.
 
 Functions provided by the mdReports package can be used to query
-information stored in mdJSON records and generate html reports by
-individual project, a subset of projects, or for all projects.
+information stored in mdJSON records and generate reports by individual
+project, a subset of projects, or for all projects.
+
+## Current Functions
+
+Currently, the package can import mdJSON files into R, generate a human
+readable metadata summary for projects and data products, and create a
+report of all projects within a program.
 
 ## Installation
 
@@ -27,7 +32,3 @@ You can install the released version of mdReports from
 [Github](https://github.com/) by installing devtools, if necessary, with
 `install.packages("devtools")` followed by running
 `devtools::install_github("twisneskie/mdReports")`.
-
-## Vignette
-
-View the vignette for this package using `vignette(mdReports)`

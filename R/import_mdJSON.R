@@ -8,12 +8,13 @@
 #'
 #' @param program The program the report will be generated for. Choose from
 #' "fes", "mbm", "nwrs", "osm", "sa", or "all".
-#' @param path Path to directory that will be searched for metadata files.
+#' @param path Path to directory that will be searched for metadata files
+#' (for USFWS Alaska Region, use link to the RDR).
 #' @return A tibble containing imported mdJSON metadata records. Each row is a
 #' unique record
 #' @export
 
-import_mdJSON <- function(program = "fes",
+import_mdJSON <- function(program,
                           path) {
 
   #### STEP 1: IMPORT mdJSON RECORDS ####

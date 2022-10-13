@@ -4,70 +4,47 @@
 #' metadata.
 #'
 #' @param data Imported mdJSON data
-#' @param term Term to search for
+#' @param term Term or regex string to search for
+#' @param col Column(s) to subset the search in. Select from: project,
+#' resourceType, title, citation, abstract, shortAbstract, purpose, timePeriod,
+#' status, pointOfContact, extent, taxonomy, keyword, constraint,
+#' resourceMaintenance, resourceLineage, resourceDistribution,
+#' associatedResource, or funding. Default selects all columns.
 #'
 #' @return A subset of resources that contain the specified term
 #' @export
-search_general <- function(data, term) {
+search_general <- function(data, term, col = "everything") {
 
   # Determine which resources contain the term
-  containsTerm <- data %>%
+  if(col == "everything"){
+
+    containsTerm <- data
+
+  } else {
+
+    containsTerm <- data %>% dplyr::select(col)
+
+  }
+
+  containsTerm <- containsTerm %>%
 
     purrr::map(as.character) %>%
 
     purrr::map(stringr::str_detect, stringr::regex(term, ignore_case = TRUE)) %>%
 
-    purrr::pluck("metadata") %>%
+    tibble::as_tibble() %>%
 
-    tibble::as_tibble()
+    dplyr::rowwise() %>%
+
+    dplyr::mutate(match = any(str_detect(c_across(), 'TRUE'))) %>%
+
+    ungroup() %>%
+
+    select(match)
 
   # Filter resources
-  data %>%
+  dmp <- data %>%
 
     dplyr::filter(containsTerm)
 
 }
-
-#' Search for a taxon
-#'
-#' Searches for resources that contain a specific taxon.
-#'
-#' @param data Imported mdJSON data
-#' @param taxon Taxon to search for
-#'
-#' @return A subset of resources that contain a specific taxon.
-#' @export
-search_taxon <- function(data, taxon){
-
-  #Make a list of which resources contain the taxon
-  expandTaxonomy <- data %>%
-
-    tidyr::hoist("metadata",
-                 "resourceInfo") %>%
-
-    tidyr::hoist("resourceInfo",
-                 "taxonomy") %>%
-
-    tidyr::unnest("taxonomy", keep_empty = TRUE) %>%
-
-    tidyr::unnest("taxonomy", keep_empty = TRUE)
-
-  containsTaxon <- dplyr::select(expandTaxonomy,
-                                 "taxonomicClassification") %>%
-
-    purrr::map(as.character) %>%
-
-    purrr::map(stringr::str_detect, stringr::regex(taxon, ignore_case = T)) %>%
-
-    tibble::as_tibble()
-
-  #Filter the resources and return important resource info
-  data %>%
-
-    dplyr::filter(containsTaxon)
-
-}
-
-# Search by time periods
-
-# Search for update needed

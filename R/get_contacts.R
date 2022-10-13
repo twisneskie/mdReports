@@ -1,5 +1,8 @@
 #' Get Contacts
 #'
+#' Generates a table of contacts for individuals and organizations associated
+#' with a set of metadata records. Primarily used within other functions.
+#'
 #' @param data Any number of mdJSON metadata records that have been flattened
 #' into a tidy tibble
 #'
